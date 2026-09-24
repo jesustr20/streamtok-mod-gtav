@@ -2,10 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
 
 namespace StreamTok.GtaV.Actions
 {
+    /// <summary>
+    /// Error esperado de una acción (ej. "el jugador no tiene vehículo", "límite alcanzado").
+    /// Se informa a StreamTok en el mod-ack y en el log se guarda solo el mensaje, sin traza.
+    /// </summary>
+    internal sealed class ActionException : Exception
+    {
+        public ActionException(string message) : base(message) { }
+    }
+
     /// <summary>Definición de un parámetro de acción. Se publica en mod-hello.</summary>
     internal sealed class ParamDef
     {
@@ -96,30 +106,51 @@ namespace StreamTok.GtaV.Actions
         public Action<ActionContext> Execute { get; }
     }
 
+    /// <summary>Servicios compartidos por todas las acciones.</summary>
+    internal sealed class ActionServices
+    {
+        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, Random rng)
+        {
+            Tracker = tracker;
+            Effects = effects;
+            Scheduler = scheduler;
+            Rng = rng;
+        }
+
+        public EntityTracker Tracker { get; }
+        public PlayerEffects Effects { get; }
+        public FrameScheduler Scheduler { get; }
+        public Random Rng { get; }
+    }
+
     /// <summary>Lo que recibe una acción al ejecutarse: parámetros ya validados y servicios.</summary>
     internal sealed class ActionContext
     {
         private readonly Dictionary<string, object> _values;
+        private readonly ActionServices _services;
 
-        private ActionContext(Dictionary<string, object> values, string nameTag, EntityTracker tracker, Random rng)
+        private ActionContext(Dictionary<string, object> values, string nameTag, ActionServices services)
         {
             _values = values;
             NameTag = nameTag;
-            Tracker = tracker;
-            Rng = rng;
+            _services = services;
         }
 
         /// <summary>Nombre a dibujar sobre las entidades creadas (ya limpio). Puede ser null.</summary>
         public string NameTag { get; }
 
-        public EntityTracker Tracker { get; }
-        public Random Rng { get; }
+        public EntityTracker Tracker => _services.Tracker;
+        public PlayerEffects Effects => _services.Effects;
+        public FrameScheduler Scheduler => _services.Scheduler;
+        public Random Rng => _services.Rng;
 
         public int Int(string name) => (int)_values[name];
         public string Enum(string name) => (string)_values[name];
         public bool Bool(string name) => (bool)_values[name];
 
-        public static ActionContext Create(ActionDef def, IDictionary<string, object> raw, string nameTag, EntityTracker tracker, Random rng)
+        public T Pick<T>(IList<T> items) => items[Rng.Next(items.Count)];
+
+        public static ActionContext Create(ActionDef def, IDictionary<string, object> raw, string nameTag, ActionServices services)
         {
             var values = new Dictionary<string, object>();
             foreach (ParamDef p in def.Params)
@@ -128,7 +159,7 @@ namespace StreamTok.GtaV.Actions
                 raw?.TryGetValue(p.Name, out v);
                 values[p.Name] = p.Normalize(v);
             }
-            return new ActionContext(values, nameTag, tracker, rng);
+            return new ActionContext(values, nameTag, services);
         }
     }
 }

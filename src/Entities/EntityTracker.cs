@@ -1,40 +1,44 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using GTA;
 using GTA.Math;
+using GTA.Native;
+using StreamTok.GtaV.Actions;
 
 namespace StreamTok.GtaV.Entities
 {
     /// <summary>
     /// Lleva registro de todo lo que spawnea el mod:
     ///  - dibuja el nombre del viewer sobre cada entidad (cada frame),
-    ///  - limpia las que murieron o desaparecieron,
-    ///  - aplica un límite global de spawns para no tumbar el juego.
+    ///  - limpia las que murieron, se destruyeron o desaparecieron,
+    ///  - aplica límites globales (peds y vehículos por separado) para no tumbar el juego.
     /// </summary>
     internal sealed class EntityTracker
     {
         public const string KindAttacker = "attacker";
         public const string KindAnimal = "animal";
+        public const string KindVehicle = "vehicle";
 
         /// <summary>A más distancia que esto no se dibuja el nombre (evita llenar la pantalla).</summary>
         private const float TagDistance = 50f;
 
         private readonly List<Tracked> _items = new List<Tracked>();
         private readonly int _maxPeds;
+        private readonly int _maxVehicles;
         private readonly GTA.UI.TextElement _label;
         private RelationshipGroup _hostile;
         private bool _hostileCreated;
 
-        public EntityTracker(int maxPeds)
+        public EntityTracker(int maxPeds, int maxVehicles)
         {
             _maxPeds = Math.Max(1, maxPeds);
+            _maxVehicles = Math.Max(1, maxVehicles);
             _label = new GTA.UI.TextElement(
                 "", PointF.Empty, 0.35f, Color.White,
                 GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true);
         }
-
-        public int Count => _items.Count;
 
         /// <summary>Grupo de relación hostil al jugador (atacantes y animales furiosos).</summary>
         public RelationshipGroup HostileGroup
@@ -51,20 +55,32 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
-        /// <summary>Cuántos se pueden crear de los pedidos sin pasar el límite global.</summary>
-        public int ClampToLimit(int requested)
+        /// <summary>Cuántos se pueden crear de los pedidos sin pasar el límite de su tipo.</summary>
+        public int ClampToLimit(string kind, int requested)
         {
-            int available = _maxPeds - _items.Count;
+            bool vehicles = kind == KindVehicle;
+            int max = vehicles ? _maxVehicles : _maxPeds;
+            int current = _items.Count(t => (t.Kind == KindVehicle) == vehicles);
+            int available = max - current;
+
             if (available <= 0)
             {
-                throw new InvalidOperationException($"Límite de spawns alcanzado ({_maxPeds})");
+                throw new ActionException(vehicles
+                    ? $"Límite de vehículos spawneados alcanzado ({max})"
+                    : $"Límite de spawns alcanzado ({max})");
             }
             return Math.Min(requested, available);
         }
 
-        public void Track(Ped ped, string nameTag, string kind)
+        /// <summary>Registra una entidad. tagHeight = metros sobre su posición (solo no-peds).</summary>
+        public void Track(Entity entity, string nameTag, string kind, float tagHeight = 0f)
         {
-            _items.Add(new Tracked { Ped = ped, Tag = nameTag, Kind = kind });
+            _items.Add(new Tracked { Entity = entity, Tag = nameTag, Kind = kind, TagHeight = tagHeight });
+        }
+
+        public void Untrack(Entity entity)
+        {
+            _items.RemoveAll(t => t.Entity == entity);
         }
 
         /// <summary>Borra del mundo todas las entidades de un tipo. Devuelve cuántas.</summary>
@@ -75,7 +91,7 @@ namespace StreamTok.GtaV.Entities
             {
                 if (_items[i].Kind == kind)
                 {
-                    Delete(_items[i].Ped);
+                    SafeDelete(_items[i].Entity);
                     _items.RemoveAt(i);
                     removed++;
                 }
@@ -88,7 +104,7 @@ namespace StreamTok.GtaV.Entities
         {
             foreach (Tracked t in _items)
             {
-                Delete(t.Ped);
+                SafeDelete(t.Entity);
             }
             _items.Clear();
         }
@@ -101,30 +117,33 @@ namespace StreamTok.GtaV.Entities
             for (int i = _items.Count - 1; i >= 0; i--)
             {
                 Tracked t = _items[i];
-                Ped ped = t.Ped;
+                Entity e = t.Entity;
 
-                if (ped == null || !ped.Exists())
+                if (e == null || !e.Exists())
                 {
                     _items.RemoveAt(i);
                     continue;
                 }
 
-                if (ped.IsDead)
+                if (e.IsDead)
                 {
-                    // Muerto: se quita el nombre y el blip, y el juego limpia el cuerpo cuando quiera.
-                    ped.AttachedBlip?.Delete();
-                    ped.MarkAsNoLongerNeeded();
+                    // Muerto o destruido: se quita el nombre y el blip; el juego lo limpia cuando quiera.
+                    e.AttachedBlip?.Delete();
+                    e.MarkAsNoLongerNeeded();
                     _items.RemoveAt(i);
                     continue;
                 }
 
-                if (t.Tag == null || ped.Position.DistanceTo(origin) > TagDistance)
+                if (t.Tag == null || e.Position.DistanceTo(origin) > TagDistance)
                 {
                     continue;
                 }
 
-                Vector3 head = ped.Bones[Bone.SkelHead].Position + new Vector3(0f, 0f, 0.35f);
-                PointF screen = GTA.UI.Screen.WorldToScreen(head);
+                Vector3 anchor = e is Ped ped
+                    ? ped.Bones[Bone.SkelHead].Position + new Vector3(0f, 0f, 0.35f)
+                    : e.Position + new Vector3(0f, 0f, t.TagHeight);
+
+                PointF screen = GTA.UI.Screen.WorldToScreen(anchor);
                 if (screen.IsEmpty)
                 {
                     continue; // fuera de pantalla
@@ -136,15 +155,24 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
-        private static void Delete(Ped ped)
+        /// <summary>Borra una entidad sin fallar; si es el vehículo del jugador, primero lo saca.</summary>
+        public static void SafeDelete(Entity entity)
         {
             try
             {
-                if (ped != null && ped.Exists())
+                if (entity == null || !entity.Exists())
                 {
-                    ped.AttachedBlip?.Delete();
-                    ped.Delete();
+                    return;
                 }
+
+                Ped player = GTA.Game.Player.Character;
+                if (entity is Vehicle vehicle && player.IsInVehicle(vehicle))
+                {
+                    Function.Call(Hash.CLEAR_PED_TASKS_IMMEDIATELY, player);
+                }
+
+                entity.AttachedBlip?.Delete();
+                entity.Delete();
             }
             catch
             {
@@ -154,9 +182,10 @@ namespace StreamTok.GtaV.Entities
 
         private sealed class Tracked
         {
-            public Ped Ped;
+            public Entity Entity;
             public string Tag;
             public string Kind;
+            public float TagHeight;
         }
     }
 }

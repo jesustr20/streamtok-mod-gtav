@@ -17,9 +17,12 @@ namespace StreamTok.GtaV.Debug
     internal sealed class DebugMenu
     {
         private const float X = 30f;
-        private const float Y = 60f;
-        private const float Width = 470f;
+        private const float Y = 50f;
+        private const float Width = 540f;
         private const float LineHeight = 22f;
+
+        /// <summary>Acciones visibles a la vez; el resto se ve desplazándose.</summary>
+        private const int VisibleActions = 14;
 
         private static readonly Color Normal = Color.White;
         private static readonly Color Selected = Color.FromArgb(255, 255, 210, 60);
@@ -110,18 +113,32 @@ namespace StreamTok.GtaV.Debug
 
             var lines = new List<KeyValuePair<string, Color>>
             {
-                Line("StreamTok · Menú de pruebas", Selected),
-                Line(_paramIndex < 0
-                    ? "Arriba/Abajo: elegir  ·  Derecha: parámetros  ·  Enter: ejecutar  ·  F7: cerrar"
-                    : "Arriba/Abajo: parámetro  ·  Izq/Der: valor (Shift x10)  ·  Retroceso: volver", Dim),
-                Line("", Normal),
+                Line($"StreamTok · Menú de pruebas   ({_actionIndex + 1}/{_actions.Count})", Selected),
             };
 
-            for (int i = 0; i < _actions.Count; i++)
+            if (_paramIndex < 0)
+            {
+                lines.Add(Line("Arriba/Abajo: elegir acción  ·  Derecha: parámetros", Dim));
+                lines.Add(Line("Enter: ejecutar  ·  F7: cerrar", Dim));
+            }
+            else
+            {
+                lines.Add(Line("Arriba/Abajo: parámetro  ·  Izq/Der: valor (Shift x10)", Dim));
+                lines.Add(Line("Enter: ejecutar  ·  Retroceso: volver", Dim));
+            }
+            lines.Add(Line("", Normal));
+
+            // Ventana de acciones visibles alrededor de la seleccionada.
+            int first = Math.Max(0, Math.Min(_actionIndex - VisibleActions / 2, _actions.Count - VisibleActions));
+            int last = Math.Min(_actions.Count, first + VisibleActions);
+
+            if (first > 0) lines.Add(Line("   ...", Dim));
+
+            for (int i = first; i < last; i++)
             {
                 ActionDef a = _actions[i];
                 bool sel = i == _actionIndex;
-                lines.Add(Line($"{(sel ? "> " : "   ")}{a.Name}  ({a.Id})", sel && _paramIndex < 0 ? Selected : sel ? Normal : Dim));
+                lines.Add(Line($"{(sel ? "> " : "   ")}{a.Name}", sel && _paramIndex < 0 ? Selected : sel ? Normal : Dim));
 
                 if (sel && _paramIndex >= 0)
                 {
@@ -134,6 +151,8 @@ namespace StreamTok.GtaV.Debug
                     }
                 }
             }
+
+            if (last < _actions.Count) lines.Add(Line("   ...", Dim));
 
             _background.Size = new SizeF(Width, lines.Count * LineHeight + 12f);
             _background.Draw();
@@ -156,7 +175,10 @@ namespace StreamTok.GtaV.Debug
             switch (def.Type)
             {
                 case "int":
-                    int step = shift ? 10 : 1;
+                    int range = def.Max.HasValue && def.Min.HasValue ? def.Max.Value - def.Min.Value : 0;
+                    // Rangos grandes (ej. dinero hasta 10 millones) avanzan en pasos más grandes.
+                    int step = range > 10000 ? 1000 : range > 1000 ? 100 : 1;
+                    if (shift) step *= 10;
                     int next = (int)current + direction * step;
                     if (def.Min.HasValue) next = Math.Max(def.Min.Value, next);
                     if (def.Max.HasValue) next = Math.Min(def.Max.Value, next);
