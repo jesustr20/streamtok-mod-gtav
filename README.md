@@ -8,7 +8,7 @@ ejecuta dentro del juego los efectos configurados en *Regalos y Eventos*.
 
 ## Roadmap del mod
 
-1. ~~Toolchain + "hola mundo"~~ ✅ (Legacy) · ⏳ Enhanced
+1. ~~Toolchain + "hola mundo"~~ ✅ (Legacy) · | GTA V Enhanced (Steam) | 1.0.1158.16: **no soportado aún** por ScriptHookV (soporta hasta 1158.13) |
 2. Conectar al WS del sidecar
 3. Implementar los efectos del catálogo
 4. Probar con el Simulador de eventos
