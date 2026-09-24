@@ -1,0 +1,12 @@
+{
+  "name": "streamtok-fake-sidecar",
+  "private": true,
+  "type": "module",
+  "description": "Simulador de StreamTok: servidor WS en el puerto 7331 que habla el contrato mod-hello / mod-command / mod-ack",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

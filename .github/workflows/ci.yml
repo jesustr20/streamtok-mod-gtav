@@ -1,0 +1,42 @@
+# CI: compila el mod en cada PR y en cada push a main.
+# No puede probar dentro del juego (no hay GTA V en el runner): eso sigue siendo manual.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # net48 compila en Linux gracias a Microsoft.NETFramework.ReferenceAssemblies (ver .csproj).
+    # Linux consume la mitad de minutos que Windows en repos privados.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Compilar
+        run: dotnet build StreamTok.GtaV.csproj -c Release
+
+      - name: Subir DLL como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: StreamTok.GtaV-${{ github.sha }}
+          path: bin/Release/net48/StreamTok.GtaV.dll
+          retention-days: 14
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Revisar sintaxis del simulador
+        run: node --check tools/fake-sidecar/index.mjs

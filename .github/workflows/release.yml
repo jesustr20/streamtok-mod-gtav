@@ -1,0 +1,43 @@
+# Release: al subir un tag v* (ej. v0.3.0) compila con esa versión, arma un zip listo
+# para instalar y crea el Release en GitHub. Es el zip que usará "Instalar Mod" en StreamTok.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Versión desde el tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Compilar
+        run: dotnet build StreamTok.GtaV.csproj -c Release -p:Version=${{ steps.version.outputs.value }}
+
+      - name: Empaquetar
+        run: |
+          mkdir -p dist/pkg/scripts
+          cp bin/Release/net48/StreamTok.GtaV.dll dist/pkg/scripts/
+          cp README.md dist/pkg/
+          cd dist/pkg
+          zip -r "../StreamTok.GtaV-${GITHUB_REF_NAME}.zip" .
+
+      - name: Crear Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/StreamTok.GtaV-${GITHUB_REF_NAME}.zip" \
+            --title "StreamTok Mod GTA V $GITHUB_REF_NAME" \
+            --generate-notes
