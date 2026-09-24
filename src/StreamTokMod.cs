@@ -48,6 +48,7 @@ namespace StreamTok.GtaV
             _logPath = Path.Combine(BaseDirectory, "StreamTok.GtaV.log");
             Log($"Constructor ejecutado: SHVDN instanció StreamTokMod v{ModVersion}.");
 
+            PlayerTransform.Log = Log;
             _registry = ActionRegistry.CreateDefault();
             _services = new ActionServices(
                 new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20)),
@@ -89,6 +90,9 @@ namespace StreamTok.GtaV
 
             if (!_announced)
             {
+                // Recién cargado no hay efectos activos: el jugador SIEMPRE debe verse.
+                // (Corrige restos de una sesión anterior; el estado queda guardado en el ped.)
+                GTA.Game.Player.Character.IsVisible = true;
                 Notification.Show($"~p~StreamTok~s~ v{ModVersion} cargado ~g~OK");
                 _announced = true;
             }
@@ -165,6 +169,10 @@ namespace StreamTok.GtaV
             _client.Dispose();
             _services.Scheduler.Clear();
             _services.Effects.EndAll();
+            PlayerTransform.RestoreNow(); // no habrá más frames: sin pasos
+
+            // Con todos los efectos apagados, el jugador tiene que quedar visible.
+            try { GTA.Game.Player.Character.IsVisible = true; } catch { /* cerrando el juego */ }
             _services.Tracker.RemoveAll();
             Log("Script detenido (Aborted).");
         }

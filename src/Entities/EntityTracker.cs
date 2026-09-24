@@ -55,12 +55,16 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
-        /// <summary>Cuántos se pueden crear de los pedidos sin pasar el límite de su tipo.</summary>
-        public int ClampToLimit(string kind, int requested)
+        /// <summary>Cuántos peds se pueden crear de los pedidos sin pasar el límite.</summary>
+        public int ClampPeds(int requested) => Clamp(requested, vehicles: false);
+
+        /// <summary>Cuántos vehículos se pueden crear de los pedidos sin pasar el límite.</summary>
+        public int ClampVehicles(int requested) => Clamp(requested, vehicles: true);
+
+        private int Clamp(int requested, bool vehicles)
         {
-            bool vehicles = kind == KindVehicle;
             int max = vehicles ? _maxVehicles : _maxPeds;
-            int current = _items.Count(t => (t.Kind == KindVehicle) == vehicles);
+            int current = _items.Count(t => (t.Entity is Vehicle) == vehicles);
             int available = max - current;
 
             if (available <= 0)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using GTA;
+using StreamTok.GtaV.Entities;
 
 namespace StreamTok.GtaV.Actions
 {
@@ -21,6 +22,7 @@ namespace StreamTok.GtaV.Actions
             yield return new ActionDef("max_ammo", "Munición máxima", false, null,
                 ctx =>
                 {
+                    PlayerTransform.RequireHuman();
                     Ped p = GTA.Game.Player.Character;
                     foreach (WeaponHash hash in Enum.GetValues(typeof(WeaponHash)).Cast<WeaponHash>().Distinct())
                     {
@@ -36,6 +38,7 @@ namespace StreamTok.GtaV.Actions
 
         private static void GiveWeapon(ActionContext ctx)
         {
+            PlayerTransform.RequireHuman();
             Ped player = GTA.Game.Player.Character;
             string weapon = ctx.Enum("weapon");
 

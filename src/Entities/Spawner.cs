@@ -14,10 +14,7 @@ namespace StreamTok.GtaV.Entities
             Model model = Load(modelName);
             try
             {
-                Vector3 toPlayer = GTA.Game.Player.Character.Position - position;
-                float heading = (float)(Math.Atan2(-toPlayer.X, toPlayer.Y) * 180.0 / Math.PI);
-
-                Ped ped = World.CreatePed(model, position, heading);
+                Ped ped = World.CreatePed(model, position, HeadingToPlayer(position));
                 if (ped == null)
                 {
                     throw new ActionException($"El juego no pudo crear '{modelName}' (¿límite de entidades?)");
@@ -59,6 +56,13 @@ namespace StreamTok.GtaV.Entities
             {
                 model.MarkAsNoLongerNeeded();
             }
+        }
+
+        /// <summary>Rumbo (grados) para que algo en <paramref name="position"/> mire hacia el jugador.</summary>
+        public static float HeadingToPlayer(Vector3 position)
+        {
+            Vector3 toPlayer = GTA.Game.Player.Character.Position - position;
+            return (float)(Math.Atan2(-toPlayer.X, toPlayer.Y) * 180.0 / Math.PI);
         }
 
         /// <summary>Punto al azar alrededor del jugador, entre minDist y maxDist metros, a nivel del suelo.</summary>

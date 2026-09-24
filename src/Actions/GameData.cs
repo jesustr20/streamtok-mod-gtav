@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using GTA;
+using GTA.Math;
 
 namespace StreamTok.GtaV.Actions
 {
@@ -78,6 +79,40 @@ namespace StreamTok.GtaV.Actions
             ["bike"] = 1.6f,
             ["boat"] = 2.2f,
             ["plane"] = 3.5f,
+        };
+
+        /// <summary>Animales en los que se puede convertir el jugador.</summary>
+        public static readonly Dictionary<string, string> TransformAnimals = new Dictionary<string, string>
+        {
+            ["dog"] = "a_c_shepherd",
+            ["pug"] = "a_c_pug",
+            ["cat"] = "a_c_cat_01",
+            ["pigeon"] = "a_c_pigeon",
+            ["chicken"] = "a_c_hen",
+            ["pig"] = "a_c_pig",
+            ["cow"] = "a_c_cow",
+            ["chimp"] = "a_c_chimp",
+            ["cougar"] = "a_c_mtlion",
+            ["boar"] = "a_c_boar",
+        };
+
+        public static readonly string[] BanditBikes = { "daemon", "hexer", "zombiea" };
+
+        /// <summary>
+        /// Lugares para teletransportar (coordenadas aproximadas, a nivel del suelo o techo).
+        /// El orden importa: es el que recorren "siguiente" y "anterior".
+        /// </summary>
+        public static readonly Dictionary<string, Vector3> Locations = new Dictionary<string, Vector3>
+        {
+            ["maze_bank"] = new Vector3(-75.2f, -818.9f, 326.2f),      // techo del Maze Bank
+            ["vinewood_sign"] = new Vector3(711.4f, 1198.1f, 348.5f),  // letrero de Vinewood
+            ["chiliad"] = new Vector3(501.8f, 5604.4f, 797.9f),        // cima del Monte Chiliad
+            ["paleto_bay"] = new Vector3(-379.5f, 6118.3f, 31.5f),
+            ["sandy_shores"] = new Vector3(1747.0f, 3273.7f, 41.1f),   // aeródromo
+            ["fort_zancudo"] = new Vector3(-2047.4f, 3132.1f, 32.8f),  // base militar: ¡disparan!
+            ["del_perro_pier"] = new Vector3(-1850.1f, -1231.8f, 13.0f),
+            ["airport"] = new Vector3(-1336.6f, -3044.0f, 13.9f),      // aeropuerto de Los Santos
+            ["grove_street"] = new Vector3(105.8f, -1941.7f, 20.8f),
         };
 
         public static string[] Keys<T>(Dictionary<string, T> map) => map.Keys.ToArray();
