@@ -1,124 +1,119 @@
 # Catálogo de acciones · StreamTok Mod GTA V
 
-Catálogo del mod, independiente de TikTok. Cada acción tiene un `id` estable (el que viaja en
-`mod-command`) y parámetros configurables desde StreamTok. Varias acciones parecidas de la lista
-original se unificaron en **una acción con parámetros**. Por ejemplo, "dar lanzacohetes", "dar
-sniper" y "dar arma random" son `give_weapon` con `weapon = rpg | sniper | random`.
+Catálogo del mod, **independiente de TikTok**. Cada acción tiene un `id` estable (el que viaja
+en `mod-command`) y parámetros que StreamTok configura. El mod publica este catálogo en
+`mod-hello` al conectarse, así que lo que aparece aquí es lo que ve el panel de StreamTok.
 
-**Dificultad:** ⭐ 1-2 natives · ⭐⭐ lógica propia (duración, seguimiento, restaurar estado) · ⭐⭐⭐ efecto construido desde cero
-**Nombre:** 🏷️ = los spawns llevan el `nameTag` del viewer encima
-**Duración:** ⏱️ = efecto temporal con parámetro `seconds`; el mod lo revierte solo
+**Estado:** ✅ implementada · 🚧 en esta rama · ⏳ planificada · ⏸️ pausada
+**Dificultad:** ⭐ 1-2 natives · ⭐⭐ lógica propia · ⭐⭐⭐ efecto construido desde cero
+
+## Regla de nombres
+
+El nombre del viewer va **siempre encima del objeto**:
+
+| Caso | Comportamiento |
+|---|---|
+| **Spawn aparte** (carro al lado, animales, atacantes, motorizados) | 🏷️ Único, con su nombre fijo mientras exista. Nunca se reemplaza |
+| **Lo que afecta al personaje** (su vehículo, sus efectos, su transformación) | 🔁 Si otro viewer repite la misma acción, **su nombre reemplaza al anterior** |
+
+- Los **efectos del personaje no tienen duración**: se activan o desactivan con `enabled` y quedan hasta que otra acción los cambie.
+- Los **efectos del mundo** (terremoto) sí tienen `seconds`; si se repiten, se suma el tiempo.
 
 ## 1. NPC y atacantes
 
-| id | Cubre de la lista original | Parámetros | Dif. | |
+| id | Nombre | Parámetros | | Estado |
 |---|---|---|---|---|
-| `spawn_attackers` | spawn atacantes · atacantes armados · npc con RPG / MG / cuerpo a cuerpo · asesinos monos · generar alien | `count`, `weapon` (none, melee, pistol, smg, rifle, mg, rpg, random), `model` (normal, mono, alien, random) | ⭐⭐ | 🏷️ |
-| `spawn_bikers` | policías motorizados · bandidos motorizados | `count`, `faction` (police, bandits) | ⭐⭐ | 🏷️ |
-| `spawn_animal` | animal random · animal furioso | `animal` (random, dog, cow, boar, cougar…), `hostile` (sí/no) | ⭐ | 🏷️ |
-| `spawn_companion` | compañero de caminata | `model` | ⭐⭐ | 🏷️ |
-| `spawn_crazy_npc` | npc furioso divertido | — | ⭐⭐ | 🏷️ |
-| `spawn_fans` | conejos fans ❓ | `count`, `animal` | ⭐⭐ | 🏷️ |
-| `attackers_arm` | equipar armas en atacantes | `weapon` | ⭐ | |
-| `attackers_heal` | curar atacantes | — | ⭐ | |
-| `attackers_to_pigs` | atacantes convertidos en cerdos | — | ⭐⭐ | |
-| `attackers_remove` | remover atacantes | — | ⭐ | |
+| `spawn_animal` | Spawn de animal | `animal`, `count` (1-20), `hostile` | 🏷️ | ✅ v0.2 |
+| `spawn_attackers` | Spawn de atacantes | `count` (1-50), `weapon`, `model` (normal, random, chimp, alien) | 🏷️ | ✅ v0.2 |
+| `spawn_bikers` | Motorizados | `count` (1-10), `faction` (bandits, police) | 🏷️ | 🚧 v0.4 |
+| `attackers_remove` | Remover atacantes (incluye motos) | — | | ✅ v0.2 |
+| `attackers_arm` | Equipar armas en atacantes | `weapon` | | ⏳ |
+| `attackers_heal` | Curar atacantes | — | | ⏳ |
+| `attackers_to_pigs` | Atacantes convertidos en cerdos | — | | ⏳ |
+| `spawn_companion` | Compañero de caminata | `model` | 🏷️ | ⏳ |
+| `spawn_crazy_npc` | NPC furioso divertido | — | 🏷️ | ⏳ |
 
 ## 2. Vehículos
 
-| id | Cubre | Parámetros | Dif. | |
+| id | Nombre | Parámetros | | Estado |
 |---|---|---|---|---|
-| `spawn_vehicle` | generar auto / barco / avión · vehículo random · moto random · spawn y conducir random | `type` (car, bike, boat, plane, random), `model` (opcional), `drive` (meter al jugador sí/no) | ⭐ | 🏷️ |
-| `spawn_ramp` | generar rampa | — | ⭐⭐ | |
-| `vehicles_remove` | remover vehículos (los spawneados) | — | ⭐ | |
-| `vehicle_replace` | reemplazar vehículo de serie ❓ | `type` | ⭐ | |
-| `vehicle_repair` | reparar vehículo actual | — | ⭐ | |
-| `vehicle_explode` | explotar vehículo | — | ⭐ | |
-| `vehicle_delete` | eliminar vehículo del jugador | — | ⭐ | |
-| `vehicle_eject` | dejar vehículo | — | ⭐ | |
-| `vehicle_break` | desarmar vehículo | — | ⭐ | |
-| `vehicle_burst_tires` | romper ruedas | — | ⭐ | |
-| `vehicle_boost` | nitro · acelerar | `power` | ⭐ | |
-| `vehicle_tuning` | tuning parcial / completo random | `mode` (partial, full) | ⭐⭐ | |
-| `vehicles_invisible` | vehículos invisibles | `seconds` | ⭐⭐ | ⏱️ |
-| `traffic_fast` | coches rápidos | `seconds` | ⭐⭐ | ⏱️ |
+| `player_vehicle` | Generar vehículo (te sube; si ya vas en uno, lo reemplaza sin perder velocidad) | `type` | 🔁 | ✅ v0.3 |
+| `spawn_vehicle` | Generar carro al lado | `type` | 🏷️ | ✅ v0.3 |
+| `vehicles_remove` | Remover vehículos | — | | ✅ v0.3 |
+| `vehicle_repair` | Reparar vehículo | — | | ✅ v0.2 |
+| `vehicle_explode` | Explotar vehículo | — | | ✅ v0.2 |
+| `vehicle_delete` | Eliminar vehículo del jugador | — | | ✅ v0.3 |
+| `vehicle_eject` | Sacar del vehículo | — | | ✅ v0.3 |
+| `vehicle_break` | Desarmar vehículo | — | | ✅ v0.3 |
+| `vehicle_burst_tires` | Romper ruedas | — | | ✅ v0.3 |
+| `vehicle_boost` | Nitro | `power` | | ✅ v0.3 |
+| `vehicle_tuning` | Tuning random | `mode` (partial, full) | | 🚧 v0.4 |
+| `spawn_ramp` | Generar rampa | — | | ⏳ |
+| `vehicles_invisible` | Vehículos invisibles | `enabled` | | ⏳ |
+| `traffic_fast` | Coches rápidos | `enabled` | | ⏳ |
 
 ## 3. Jugador
 
-| id | Cubre | Parámetros | Dif. | |
+| id | Nombre | Parámetros | | Estado |
 |---|---|---|---|---|
-| `player_health` | aumentar vida · quitar vida | `mode` (add, remove), `amount` | ⭐ | |
-| `player_kill` | matar jugador | — | ⭐ | |
-| `player_invincible` | inmortalidad | `seconds` | ⭐ | ⏱️ |
-| `player_invisible` | modo invisible | `seconds` | ⭐ | ⏱️ |
-| `player_drunk` | modo ebrio | `seconds` | ⭐⭐ | ⏱️ |
-| `player_night_vision` | visión nocturna | `seconds` | ⭐ | ⏱️ |
-| `player_jump` | salto | `force` | ⭐ | |
-| `player_super_jump` | super alto ❓ | `seconds` | ⭐ | ⏱️ |
-| `player_skydive` | paracaidismo | `height` | ⭐ | |
-| `player_transform` | convertir en perro · convertir en paloma | `animal` (dog, pigeon…), `seconds` | ⭐⭐ | ⏱️ |
-| `player_random_outfit` | ropa random | — | ⭐ | |
-
-`player_transform` guarda el modelo y la ropa originales y los restaura al terminar.
+| `player_health` | Vida del jugador | `mode` (add, remove), `amount` | | ✅ v0.2 |
+| `player_kill` | Matar jugador | — | | ✅ v0.3 |
+| `player_invincible` | Inmortalidad | `enabled` | 🔁 | ✅ v0.3 |
+| `player_invisible` | Modo invisible | `enabled` | 🔁 | ✅ v0.3 |
+| `player_night_vision` | Visión nocturna | `enabled` | 🔁 | ✅ v0.3 |
+| `player_super_jump` | Súper salto | `enabled` | 🔁 | ✅ v0.3 |
+| `player_drunk` | Modo ebrio | `enabled` | 🔁 | 🚧 v0.4 |
+| `player_transform` | Convertir en animal — **pausado**: el cambio de modelo congela el juego (Legacy 1.0.3889.0 + SHVDNE 1.1.0.6) | `animal`, `enabled` | 🔁 | ⏸️ |
+| `player_jump` | Salto | `force` | | ✅ v0.3 |
+| `player_skydive` | Paracaidismo | `height` | | ✅ v0.3 |
+| `player_random_outfit` | Ropa random | — | | ✅ v0.3 |
+| `teleport` | Teletransporte (con el vehículo si vas en uno) | `mode` (up, random, location, next, previous), `location`, `height` | | 🚧 v0.4 |
 
 ## 4. Armas
 
-| id | Cubre | Parámetros | Dif. |
+| id | Nombre | Parámetros | Estado |
 |---|---|---|---|
-| `give_weapon` | añadir armas · dar armas · lanzacohetes · rifle sniper · arma random | `weapon` (específica, rpg, sniper, random, all) | ⭐ |
-| `remove_weapons` | quitar armas | — | ⭐ |
-| `max_ammo` | munición máxima | — | ⭐ |
+| `give_weapon` | Dar arma | `weapon` (específica, random, all) | ✅ v0.2 |
+| `remove_weapons` | Quitar armas | — | ✅ v0.3 |
+| `max_ammo` | Munición máxima | — | ✅ v0.3 |
 
-## 5. Policía y dinero
+## 5. Policía, dinero y mundo
 
-| id | Cubre | Parámetros | Dif. |
+| id | Nombre | Parámetros | Estado |
 |---|---|---|---|
-| `wanted_level` | aumentar · reducir · búsqueda máxima | `mode` (add, remove, max, clear), `stars` | ⭐ |
-| `money` | añadir dinero · establecer dinero | `mode` (add, set), `amount` | ⭐ |
+| `wanted_level` | Nivel de búsqueda | `mode` (add, remove, max, clear), `stars` | ✅ v0.2 |
+| `money` | Dinero | `mode` (add, set), `amount` | ✅ v0.3 |
+| `set_weather` | Clima | `weather` | ✅ v0.2 |
+| `set_time` | Hora del día | `hour` | ✅ v0.2 |
+| `earthquake` | Terremoto | `seconds`, `intensity` | 🚧 v0.4 |
+| `gravity_low` | Gravedad reducida | `enabled` | ⏳ |
+| `meteor_shower` | Lluvia de meteoritos ⭐⭐⭐ | `seconds`, `density` | ⏳ |
+| `black_hole` | Agujero negro ⭐⭐⭐ | `seconds`, `strength` | ⏳ |
+| `tornado` | Tornado ⭐⭐⭐ | `seconds`, `strength` | ⏳ |
 
-## 6. Teletransporte
+## 6. Personajes custom (Fases 6-7)
 
-| id | Cubre | Parámetros | Dif. |
-|---|---|---|---|
-| `teleport` | arriba · random · a ubicación · punto siguiente · punto anterior | `mode` (up, random, location, next, previous), `location` | ⭐⭐ |
+Personaje = **modelo + plantilla de comportamiento**. StreamTok incluye personajes **originales**
+hechos con modelos de GTA; el streamer puede registrar en su PC los add-on peds que instale por su
+cuenta (StreamTok no los distribuye).
 
-`next` y `previous` recorren una lista de puntos que el mod trae (y que más adelante podría editarse desde StreamTok).
+| Plantilla | Idea | Dificultad |
+|---|---|---|
+| Súper fuerza | Mucha vida, golpes que lanzan lejos | ⭐⭐ |
+| Tanque / jefe | Vida enorme, barra de vida | ⭐⭐ |
+| Lanza energía | Proyectiles con partículas | ⭐⭐⭐ |
+| Volador | Vuelo simulado cada frame | ⭐⭐⭐ |
+| Gigante | Solo con un modelo gigante | depende del modelo |
 
-## 7. Mundo y efectos
+## 7. Modos de juego
 
-| id | Cubre | Parámetros | Dif. | |
-|---|---|---|---|---|
-| `set_time` | establecer hora | `hour` | ⭐ | |
-| `set_weather` | establecer clima | `weather` (clear, rain, thunder, snow, fog…) | ⭐ | |
-| `gravity_low` | gravedad reducida | `seconds` | ⭐ | ⏱️ |
-| `earthquake` | terremoto | `seconds`, `intensity` | ⭐⭐ | ⏱️ |
-| `meteor_shower` | lluvia de meteoritos | `seconds`, `density` | ⭐⭐⭐ | ⏱️ |
-| `black_hole` | agujero negro | `seconds`, `strength` | ⭐⭐⭐ | ⏱️ |
-| `tornado` | (propuesto) | `seconds`, `strength` | ⭐⭐⭐ | ⏱️ |
-| `orange_ball` | bola naranja ❓ | — | ❓ | |
+Reglas que corren todo el tiempo mientras están activas. Irán como `modes` en `mod-hello`.
 
-## 8. Modos de juego (fase aparte)
-
-No son acciones sueltas: son **reglas que corren todo el tiempo** mientras están activas.
-En el contrato irían como una lista `modes` en `mod-hello`, aparte de `actions`.
-
-- **Chiliad** (interpretación a confirmar): reto de subir el Monte Chiliad. Sus acciones
-  propias serían desactivar GPS, temporizador, accidente en pista y rampa.
-- **Chaos Mod**: efectos aleatorios cada X segundos. Existe **ChaosModV**, un mod de código
-  abierto con cientos de efectos; sirve de fuente de ideas. Revisar su licencia antes de
-  reutilizar código.
+- **Chiliad**: reto de subir el Monte Chiliad (desactivar GPS, temporizador, accidente en pista, rampa).
+- **Chaos Mod**: efectos aleatorios cada X segundos (ideas: ChaosModV; revisar su licencia antes de reutilizar código).
 
 ## ❓ Por aclarar
 
-- `spawn_fans`: ¿"conejos fans" son conejos que siguen al jugador?
-- `vehicle_replace`: ¿"reemplazar vehículo de serie" cambia el vehículo actual por otro al azar?
-- `player_super_jump`: ¿"super alto" es súper salto temporal?
-- `orange_ball`: ¿qué hace la "bola naranja"?
-
-## Tandas de implementación
-
-1. **Base (todo ⭐, valida el sistema):** `spawn_animal`, `spawn_attackers`, `attackers_remove`, `give_weapon`, `player_health`, `wanted_level`, `set_weather`, `set_time`, `vehicle_repair`, `vehicle_explode`
-2. **Vehículos y jugador:** el resto de ⭐ de las secciones 2 a 6
-3. **Temporales ⏱️ y ⭐⭐:** drunk, transform, earthquake, bikers, tuning, teleport…
-4. **Espectáculo ⭐⭐⭐:** meteoritos, agujero negro, tornado
-5. **Modos:** Chiliad, Chaos
+- "Conejos fans": ¿conejos que siguen al jugador?
+- "Bola naranja": ¿qué hace?
+- "Súper alto": implementado como súper salto; confirmar si era eso.

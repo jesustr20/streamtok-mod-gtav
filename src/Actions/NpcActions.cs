@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using GTA;
+using GTA.Math;
+using GTA.Native;
 using StreamTok.GtaV.Entities;
 
 namespace StreamTok.GtaV.Actions
@@ -29,6 +31,14 @@ namespace StreamTok.GtaV.Actions
                 },
                 SpawnAttackers);
 
+            yield return new ActionDef("spawn_bikers", "Motorizados", true,
+                new[]
+                {
+                    ParamDef.Int("count", 2, 1, 10),
+                    ParamDef.Enum("faction", "bandits", "bandits", "police"),
+                },
+                SpawnBikers);
+
             yield return new ActionDef("attackers_remove", "Remover atacantes", false, null,
                 ctx => ctx.Tracker.RemoveKind(EntityTracker.KindAttacker));
         }
@@ -36,7 +46,7 @@ namespace StreamTok.GtaV.Actions
         private static void SpawnAnimal(ActionContext ctx)
         {
             string key = ctx.Enum("animal");
-            int count = ctx.Tracker.ClampToLimit(EntityTracker.KindAnimal, ctx.Int("count"));
+            int count = ctx.Tracker.ClampPeds(ctx.Int("count"));
             bool hostile = ctx.Bool("hostile");
 
             for (int i = 0; i < count; i++)
@@ -60,9 +70,51 @@ namespace StreamTok.GtaV.Actions
             }
         }
 
+        /// <summary>
+        /// Motos con su conductor armado que persiguen y disparan al jugador.
+        /// El nombre va sobre el conductor; la moto se borra junto con los atacantes.
+        /// </summary>
+        private static void SpawnBikers(ActionContext ctx)
+        {
+            int count = ctx.Tracker.ClampPeds(ctx.Int("count"));
+            count = ctx.Tracker.ClampVehicles(count);
+            bool police = ctx.Enum("faction") == "police";
+            Ped player = GTA.Game.Player.Character;
+
+            for (int i = 0; i < count; i++)
+            {
+                string bikeModel = police ? "policeb" : ctx.Pick(GameData.BanditBikes);
+                string riderModel = police ? "s_m_y_cop_01" : ctx.Pick(GameData.NormalAttackers);
+
+                Vector3 position = Spawner.NearPlayer(ctx.Rng, 35f, 50f);
+                Vehicle bike = Spawner.SpawnVehicle(bikeModel, position, Spawner.HeadingToPlayer(position), placeOnGround: true);
+                ctx.Tracker.Track(bike, null, EntityTracker.KindAttacker);
+
+                Spawner.Preload(riderModel);
+                Ped rider = bike.CreatePedOnSeat(VehicleSeat.Driver, new Model(riderModel));
+                if (rider == null)
+                {
+                    throw new ActionException($"El juego no pudo crear el conductor '{riderModel}'");
+                }
+
+                rider.RelationshipGroup = ctx.Tracker.HostileGroup;
+                rider.Weapons.Give(police ? WeaponHash.Pistol : WeaponHash.MicroSMG, 9999, true, true);
+                Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, rider, 2, true);  // disparar desde el vehículo
+                Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, rider, 52, true); // atacar usando el vehículo
+                rider.Task.FightAgainst(player);
+                rider.AlwaysKeepTask = true;
+
+                Blip blip = rider.AddBlip();
+                blip.Color = police ? BlipColor.Blue : BlipColor.Red;
+                blip.Scale = 0.7f;
+
+                ctx.Tracker.Track(rider, ctx.NameTag, EntityTracker.KindAttacker);
+            }
+        }
+
         private static void SpawnAttackers(ActionContext ctx)
         {
-            int count = ctx.Tracker.ClampToLimit(EntityTracker.KindAttacker, ctx.Int("count"));
+            int count = ctx.Tracker.ClampPeds(ctx.Int("count"));
             string weapon = ctx.Enum("weapon");
             string model = ctx.Enum("model");
             Ped player = GTA.Game.Player.Character;

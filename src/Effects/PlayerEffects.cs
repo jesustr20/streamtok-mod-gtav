@@ -31,7 +31,7 @@ namespace StreamTok.GtaV.Effects
         /// <summary>
         /// Activa o desactiva un efecto. Activarlo estando activo solo cambia el nombre del viewer.
         /// </summary>
-        public void Set(string key, string label, bool enabled, string nameTag, Action onStart, Action onTick, Action onEnd)
+        public void Set(string key, string label, bool enabled, string nameTag, Action onStart, Action onTick, Action onEnd, Action onRepeat = null)
         {
             _active.TryGetValue(key, out Effect existing);
 
@@ -48,11 +48,26 @@ namespace StreamTok.GtaV.Effects
             if (existing != null)
             {
                 existing.NameTag = nameTag; // el último viewer reemplaza al anterior
+                existing.Label = label;
+                Safe(onRepeat, key);        // ej. convertir en otro animal
                 return;
             }
 
             Safe(onStart, key);
             _active[key] = new Effect { Label = label, NameTag = nameTag, OnTick = onTick, OnEnd = onEnd };
+        }
+
+        /// <summary>true si el efecto con esa clave (el id de la acción) está activo.</summary>
+        public bool IsActive(string key) => _active.ContainsKey(key);
+
+        /// <summary>Desactiva un efecto (ej. cuando el jugador muere transformado).</summary>
+        public void Stop(string key)
+        {
+            if (_active.TryGetValue(key, out Effect e))
+            {
+                _active.Remove(key);
+                Safe(e.OnEnd, key);
+            }
         }
 
         /// <summary>Llamar cada frame: mantiene los efectos y dibuja los nombres sobre el personaje.</summary>
@@ -63,9 +78,15 @@ namespace StreamTok.GtaV.Effects
                 return;
             }
 
-            foreach (KeyValuePair<string, Effect> kv in _active)
+            // Copia: un OnTick puede detener su propio efecto.
+            foreach (KeyValuePair<string, Effect> kv in _active.ToList())
             {
                 Safe(kv.Value.OnTick, kv.Key);
+            }
+
+            if (_active.Count == 0)
+            {
+                return;
             }
 
             Ped player = GTA.Game.Player.Character;
