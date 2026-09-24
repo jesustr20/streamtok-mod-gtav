@@ -1,6 +1,7 @@
 using System;
 using GTA;
 using GTA.Math;
+using StreamTok.GtaV.Actions;
 
 namespace StreamTok.GtaV.Entities
 {
@@ -10,17 +11,7 @@ namespace StreamTok.GtaV.Entities
         /// <summary>Carga un modelo por nombre (ej. "a_c_cow") y crea el ped mirando al jugador.</summary>
         public static Ped SpawnPed(string modelName, Vector3 position)
         {
-            var model = new Model(modelName);
-            if (!model.IsInCdImage || !model.IsValid)
-            {
-                throw new InvalidOperationException($"El modelo '{modelName}' no existe en esta versión del juego");
-            }
-
-            if (!model.Request(2000))
-            {
-                throw new InvalidOperationException($"No se pudo cargar el modelo '{modelName}'");
-            }
-
+            Model model = Load(modelName);
             try
             {
                 Vector3 toPlayer = GTA.Game.Player.Character.Position - position;
@@ -29,9 +20,40 @@ namespace StreamTok.GtaV.Entities
                 Ped ped = World.CreatePed(model, position, heading);
                 if (ped == null)
                 {
-                    throw new InvalidOperationException($"El juego no pudo crear '{modelName}' (¿límite de entidades?)");
+                    throw new ActionException($"El juego no pudo crear '{modelName}' (¿límite de entidades?)");
                 }
                 return ped;
+            }
+            finally
+            {
+                model.MarkAsNoLongerNeeded();
+            }
+        }
+
+        public static Vehicle SpawnVehicle(string modelName, Vector3 position, float heading, bool placeOnGround)
+        {
+            Model model = Load(modelName);
+            try
+            {
+                if (placeOnGround)
+                {
+                    float ground = World.GetGroundHeight(position + new Vector3(0f, 0f, 3f));
+                    if (ground > 0f)
+                    {
+                        position.Z = ground;
+                    }
+                }
+
+                Vehicle vehicle = World.CreateVehicle(model, position, heading);
+                if (vehicle == null)
+                {
+                    throw new ActionException($"El juego no pudo crear '{modelName}' (¿límite de entidades?)");
+                }
+                if (placeOnGround)
+                {
+                    vehicle.PlaceOnGround();
+                }
+                return vehicle;
             }
             finally
             {
@@ -56,6 +78,27 @@ namespace StreamTok.GtaV.Entities
             float ground = World.GetGroundHeight(pos);
             pos.Z = ground > 0f ? ground : origin.Z;
             return pos;
+        }
+
+        /// <summary>
+        /// Carga el modelo en memoria SIN crear nada. Puede tardar algunos frames si el modelo
+        /// no estaba cargado: hacerlo antes de tocar el estado del juego, para que el spawn
+        /// posterior sea instantáneo (mismo frame).
+        /// </summary>
+        public static void Preload(string modelName) => Load(modelName);
+
+        private static Model Load(string modelName)
+        {
+            var model = new Model(modelName);
+            if (!model.IsInCdImage || !model.IsValid)
+            {
+                throw new ActionException($"El modelo '{modelName}' no existe en esta versión del juego");
+            }
+            if (!model.Request(2000))
+            {
+                throw new ActionException($"No se pudo cargar el modelo '{modelName}'");
+            }
+            return model;
         }
     }
 }

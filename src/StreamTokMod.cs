@@ -4,6 +4,7 @@ using System.IO;
 using GTA;
 using StreamTok.GtaV.Actions;
 using StreamTok.GtaV.Debug;
+using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
 using Notification = GTA.UI.Notification;
 
@@ -19,22 +20,24 @@ namespace StreamTok.GtaV
     ///   Url=ws://localhost:7331
     ///   [Limits]
     ///   MaxSpawnedPeds=100
+    ///   MaxSpawnedVehicles=20
     ///   [Debug]
     ///   MenuEnabled=true
     ///   TestNameTag=Viewer de prueba
     /// </summary>
     public sealed class StreamTokMod : Script
     {
-        private const string ModVersion = "0.2.0";
         private const string DefaultUrl = "ws://localhost:7331";
 
         /// <summary>Máximo de comandos por frame, para repartir ráfagas y no congelar el juego.</summary>
         private const int MaxCommandsPerTick = 3;
 
+        /// <summary>Versión del DLL (la pone el CI desde el tag v*).</summary>
+        private static readonly string ModVersion = GetVersion();
+
         private readonly string _logPath;
-        private readonly Random _rng = new Random();
         private readonly ActionRegistry _registry;
-        private readonly EntityTracker _tracker;
+        private readonly ActionServices _services;
         private readonly StreamTokClient _client;
         private readonly DebugMenu _menu;
         private readonly string _testNameTag;
@@ -46,7 +49,11 @@ namespace StreamTok.GtaV
             Log($"Constructor ejecutado: SHVDN instanció StreamTokMod v{ModVersion}.");
 
             _registry = ActionRegistry.CreateDefault();
-            _tracker = new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100));
+            _services = new ActionServices(
+                new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20)),
+                new PlayerEffects(Log),
+                new FrameScheduler(Log),
+                new Random());
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
 
             string url = Setting("Connection", "Url", DefaultUrl);
@@ -66,7 +73,7 @@ namespace StreamTok.GtaV
 
             Log($"Catálogo: {_registry.All.Count} acciones. Menú de pruebas: {(_menu != null ? "F7" : "desactivado")}.");
 
-            Interval = 0; // cada frame: los nombres y el menú se dibujan frame a frame
+            Interval = 0; // cada frame: nombres, efectos y menú se dibujan frame a frame
             Tick += OnTick;
             KeyDown += (s, e) => _menu?.OnKeyDown(e.KeyCode, e.Shift);
             Aborted += OnAborted;
@@ -101,7 +108,9 @@ namespace StreamTok.GtaV
                 Log(error == null ? $"OK   {cmd.Action} ({cmd.Id})" : $"FAIL {cmd.Action} ({cmd.Id}): {error}");
             }
 
-            _tracker.Update();
+            _services.Scheduler.Update();
+            _services.Tracker.Update();
+            _services.Effects.Update();
             _menu?.Draw();
         }
 
@@ -120,11 +129,17 @@ namespace StreamTok.GtaV
             try
             {
                 string tag = action.SupportsNameTag ? TextUtil.CleanTag(nameTag) : null;
-                action.Execute(ActionContext.Create(action, rawParams, tag, _tracker, _rng));
+                action.Execute(ActionContext.Create(action, rawParams, tag, _services));
+            }
+            catch (ActionException ex)
+            {
+                // Error esperado (sin vehículo, límite…): basta con el motivo.
+                return ex.Message;
             }
             catch (Exception ex)
             {
-                Log($"Error en {actionId}: {ex}");
+                // Error inesperado: traza completa para depurar.
+                Log($"Error inesperado en {actionId}: {ex}");
                 return ex.Message;
             }
 
@@ -139,6 +154,7 @@ namespace StreamTok.GtaV
         private void RunFromMenu(ActionDef action, Dictionary<string, object> values)
         {
             string error = Run(action.Id, values, _testNameTag, null);
+            Log(error == null ? $"OK   {action.Id} (menú F7)" : $"FAIL {action.Id} (menú F7): {error}");
             Notification.Show(error == null
                 ? $"~p~[Prueba]~s~ {action.Name} ~g~OK"
                 : $"~p~[Prueba]~s~ {action.Name}: ~r~{TextUtil.CleanText(error)}");
@@ -147,8 +163,16 @@ namespace StreamTok.GtaV
         private void OnAborted(object sender, EventArgs e)
         {
             _client.Dispose();
-            _tracker.RemoveAll();
+            _services.Scheduler.Clear();
+            _services.Effects.EndAll();
+            _services.Tracker.RemoveAll();
             Log("Script detenido (Aborted).");
+        }
+
+        private static string GetVersion()
+        {
+            Version v = typeof(StreamTokMod).Assembly.GetName().Version;
+            return $"{v.Major}.{v.Minor}.{v.Build}";
         }
 
         private T Setting<T>(string section, string key, T fallback)
