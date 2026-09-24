@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    StreamTok · Mod de GTA V — Fase 1 ("hola mundo")
+    SHVDN corre sobre .NET Framework 4.8 dentro del proceso del juego (x64).
+    Proyecto SDK-style: compila con Visual Studio 2022 o con `dotnet build`.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>StreamTok.GtaV</AssemblyName>
+    <RootNamespace>StreamTok.GtaV</RootNamespace>
+    <Version>0.1.0</Version>
+    <!-- No copiar ScriptHookVDotNet3.dll al output: el juego ya lo tiene -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Solo para compilar contra la API; en runtime la provee el juego -->
+    <PackageReference Include="ScriptHookVDotNet3" Version="3.6.0" ExcludeAssets="runtime" />
+    <!-- Permite compilar net48 con `dotnet build` sin el targeting pack instalado (útil en CI) -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    Copia automática a <GTA>\scripts al compilar, SOLO si defines la variable
+    de entorno GTA_DIR (ej. E:\SteamLibrary\steamapps\common\Grand Theft Auto V).
+    Así no queda una ruta tuya hardcodeada en el repo (smeysu la tiene fija).
+  -->
+  <Target Name="CopyToGtaScripts" AfterTargets="Build" Condition="'$(GTA_DIR)' != ''">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GTA_DIR)\scripts" />
+    <Message Importance="high" Text="StreamTok.GtaV.dll copiado a $(GTA_DIR)\scripts" />
+  </Target>
+
+</Project>
