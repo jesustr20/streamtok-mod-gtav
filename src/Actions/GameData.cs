@@ -96,6 +96,17 @@ namespace StreamTok.GtaV.Actions
             ["boar"] = "a_c_boar",
         };
 
+        /// <summary>Personajes "divertidos" para el NPC furioso.</summary>
+        public static readonly string[] CrazyNpcs =
+        {
+            "s_m_y_clown_01", "s_m_m_movspace_01", "u_m_y_zombie_01", "u_m_y_mani", "s_m_m_strperf_01",
+        };
+
+        public static readonly string[] CompanionHumans =
+        {
+            "s_m_y_marine_01", "s_m_m_security_01", "g_m_y_famca_01", "s_m_y_swat_01",
+        };
+
         public static readonly string[] BanditBikes = { "daemon", "hexer", "zombiea" };
 
         /// <summary>

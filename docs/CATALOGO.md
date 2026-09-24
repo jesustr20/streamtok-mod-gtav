@@ -17,7 +17,8 @@ El nombre del viewer va **siempre encima del objeto**:
 | **Lo que afecta al personaje** (su vehículo, sus efectos, su transformación) | 🔁 Si otro viewer repite la misma acción, **su nombre reemplaza al anterior** |
 
 - Los **efectos del personaje no tienen duración**: se activan o desactivan con `enabled` y quedan hasta que otra acción los cambie.
-- Los **efectos del mundo** (terremoto) sí tienen `seconds`; si se repiten, se suma el tiempo.
+- Los **efectos del mundo** puntuales (terremoto) tienen `seconds`; si se repiten, se suma el tiempo.
+- Los **efectos del mundo** persistentes (vehículos invisibles, coches rápidos, gravedad) se activan o desactivan con `enabled`.
 
 ## 1. NPC y atacantes
 
@@ -26,12 +27,13 @@ El nombre del viewer va **siempre encima del objeto**:
 | `spawn_animal` | Spawn de animal | `animal`, `count` (1-20), `hostile` | 🏷️ | ✅ v0.2 |
 | `spawn_attackers` | Spawn de atacantes | `count` (1-50), `weapon`, `model` (normal, random, chimp, alien) | 🏷️ | ✅ v0.2 |
 | `spawn_bikers` | Motorizados | `count` (1-10), `faction` (bandits, police) | 🏷️ | 🚧 v0.4 |
-| `attackers_remove` | Remover atacantes (incluye motos) | — | | ✅ v0.2 |
-| `attackers_arm` | Equipar armas en atacantes | `weapon` | | ⏳ |
-| `attackers_heal` | Curar atacantes | — | | ⏳ |
-| `attackers_to_pigs` | Atacantes convertidos en cerdos | — | | ⏳ |
-| `spawn_companion` | Compañero de caminata | `model` | 🏷️ | ⏳ |
-| `spawn_crazy_npc` | NPC furioso divertido | — | 🏷️ | ⏳ |
+| `attackers_remove` | Remover atacantes (incluye motos y NPC furiosos) | — | | ✅ v0.2 |
+| `attackers_arm` | Equipar armas en atacantes | `weapon` | | 🚧 v0.5 |
+| `attackers_heal` | Curar atacantes | — | | 🚧 v0.5 |
+| `attackers_to_pigs` | Atacantes convertidos en cerdos (conservan su nombre) | — | 🏷️ | 🚧 v0.5 |
+| `spawn_companion` | Compañero (te sigue, sube a tu vehículo y te defiende) | `type` (human, dog, random), `count`, `weapon` | 🏷️ | 🚧 v0.5 |
+| `companions_remove` | Remover compañeros | — | | 🚧 v0.5 |
+| `spawn_crazy_npc` | NPC furioso (estrafalario, a los puñetazos, no huye) | `count` | 🏷️ | 🚧 v0.5 |
 
 ## 2. Vehículos
 
@@ -48,9 +50,10 @@ El nombre del viewer va **siempre encima del objeto**:
 | `vehicle_burst_tires` | Romper ruedas | — | | ✅ v0.3 |
 | `vehicle_boost` | Nitro | `power` | | ✅ v0.3 |
 | `vehicle_tuning` | Tuning random | `mode` (partial, full) | | 🚧 v0.4 |
-| `spawn_ramp` | Generar rampa | — | | ⏳ |
-| `vehicles_invisible` | Vehículos invisibles | `enabled` | | ⏳ |
-| `traffic_fast` | Coches rápidos | `enabled` | | ⏳ |
+| `spawn_ramp` | Generar rampa (delante, mirando hacia donde vas) | `distance` | 🏷️ | 🚧 v0.5 |
+| `ramps_remove` | Remover rampas | — | | 🚧 v0.5 |
+| `vehicles_invisible` | Vehículos invisibles (el jugador siempre se ve) | `enabled` | | 🚧 v0.5 |
+| `traffic_fast` | Coches rápidos (tráfico apurado) | `enabled` | | 🚧 v0.5 |
 
 ## 3. Jugador
 
@@ -86,7 +89,7 @@ El nombre del viewer va **siempre encima del objeto**:
 | `set_weather` | Clima | `weather` | ✅ v0.2 |
 | `set_time` | Hora del día | `hour` | ✅ v0.2 |
 | `earthquake` | Terremoto | `seconds`, `intensity` | 🚧 v0.4 |
-| `gravity_low` | Gravedad reducida | `enabled` | ⏳ |
+| `gravity_low` | Gravedad reducida | `enabled`, `level` (low, very_low, zero) | 🚧 v0.5 |
 | `meteor_shower` | Lluvia de meteoritos ⭐⭐⭐ | `seconds`, `density` | ⏳ |
 | `black_hole` | Agujero negro ⭐⭐⭐ | `seconds`, `strength` | ⏳ |
 | `tornado` | Tornado ⭐⭐⭐ | `seconds`, `strength` | ⏳ |

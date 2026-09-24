@@ -20,6 +20,11 @@ namespace StreamTok.GtaV.Entities
         public const string KindAttacker = "attacker";
         public const string KindAnimal = "animal";
         public const string KindVehicle = "vehicle";
+        public const string KindCompanion = "companion";
+        public const string KindRamp = "ramp";
+
+        /// <summary>Máximo de objetos (rampas) spawneados a la vez.</summary>
+        private const int MaxProps = 20;
 
         /// <summary>A más distancia que esto no se dibuja el nombre (evita llenar la pantalla).</summary>
         private const float TagDistance = 50f;
@@ -61,10 +66,39 @@ namespace StreamTok.GtaV.Entities
         /// <summary>Cuántos vehículos se pueden crear de los pedidos sin pasar el límite.</summary>
         public int ClampVehicles(int requested) => Clamp(requested, vehicles: true);
 
+        /// <summary>Cuántos objetos (rampas…) se pueden crear sin pasar el límite.</summary>
+        public int ClampProps(int requested)
+        {
+            int available = MaxProps - _items.Count(t => t.Entity is Prop);
+            if (available <= 0)
+            {
+                throw new ActionException($"Límite de objetos spawneados alcanzado ({MaxProps})");
+            }
+            return Math.Min(requested, available);
+        }
+
+        /// <summary>Peds vivos de un tipo (ej. atacantes), para acciones que los modifican.</summary>
+        public List<Ped> AlivePeds(string kind) =>
+            _items.Where(t => t.Kind == kind && t.Entity is Ped && t.Entity.Exists() && !t.Entity.IsDead)
+                  .Select(t => (Ped)t.Entity)
+                  .ToList();
+
+        /// <summary>Reemplaza una entidad por otra CONSERVANDO su nombre y tipo, y borra la vieja.</summary>
+        public void Replace(Entity old, Entity replacement)
+        {
+            Tracked t = _items.Find(i => i.Entity == old);
+            if (t == null)
+            {
+                return;
+            }
+            t.Entity = replacement;
+            SafeDelete(old);
+        }
+
         private int Clamp(int requested, bool vehicles)
         {
             int max = vehicles ? _maxVehicles : _maxPeds;
-            int current = _items.Count(t => (t.Entity is Vehicle) == vehicles);
+            int current = _items.Count(t => vehicles ? t.Entity is Vehicle : t.Entity is Ped);
             int available = max - current;
 
             if (available <= 0)

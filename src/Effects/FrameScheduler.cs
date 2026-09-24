@@ -24,6 +24,37 @@ namespace StreamTok.GtaV.Effects
         }
 
         /// <summary>
+        /// Bucle sin fin con clave: <paramref name="tick"/> cada frame hasta <see cref="Cancel"/>
+        /// (o hasta que el script se detenga), y entonces <paramref name="onEnd"/> para revertir.
+        /// Si ya existe uno con esa clave, no hace nada. Para efectos del mundo que se activan o
+        /// desactivan (vehículos invisibles, coches rápidos, gravedad).
+        /// </summary>
+        public void Loop(string key, Action onStart, Action tick, Action onEnd)
+        {
+            if (_jobs.Exists(j => j.Key == key))
+            {
+                return;
+            }
+            onStart?.Invoke();
+            _jobs.Add(new Job { Key = key, Forever = true, Action = tick, OnEnd = onEnd });
+        }
+
+        /// <summary>Detiene la tarea con esa clave y ejecuta su OnEnd. false si no existía.</summary>
+        public bool Cancel(string key)
+        {
+            Job job = _jobs.Find(j => j.Key == key);
+            if (job == null)
+            {
+                return false;
+            }
+            _jobs.Remove(job);
+            Finish(job);
+            return true;
+        }
+
+        public bool IsRunning(string key) => _jobs.Exists(j => j.Key == key);
+
+        /// <summary>
         /// Ejecuta <paramref name="step"/> una vez por frame hasta que devuelva true. Sirve para
         /// procesos por pasos que NO deben bloquear el juego (ej. cambiar el modelo del jugador).
         /// </summary>
@@ -67,7 +98,7 @@ namespace StreamTok.GtaV.Effects
                     else
                     {
                         job.Action?.Invoke();
-                        done = job.EndsAt > 0 ? now >= job.EndsAt : --job.Remaining <= 0;
+                        done = !job.Forever && (job.EndsAt > 0 ? now >= job.EndsAt : --job.Remaining <= 0);
                     }
                 }
                 catch (Exception ex)
@@ -109,6 +140,7 @@ namespace StreamTok.GtaV.Effects
         private sealed class Job
         {
             public string Key;
+            public bool Forever;
             public int Remaining;
             public int EndsAt;
             public Action Action;
