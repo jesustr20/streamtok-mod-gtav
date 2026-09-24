@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net.WebSockets;
-using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,31 +11,32 @@ namespace StreamTok.GtaV
     /// <summary>
     /// Cliente WebSocket hacia el sidecar de StreamTok.
     ///
-    /// Corre en un hilo de fondo: NUNCA llama a la API del juego desde aquí
-    /// (los natives de GTA solo son seguros en el hilo del script). En su lugar
-    /// deja eventos y cambios de estado en colas que el script vacía en su Tick.
+    /// Corre en hilos de fondo: NUNCA llama a la API del juego desde aquí
+    /// (los natives de GTA solo son seguros en el hilo del script). Los comandos
+    /// entrantes quedan en <see cref="Commands"/> y el script los ejecuta en su Tick;
+    /// las respuestas salen por <see cref="Send"/>.
     /// </summary>
     internal sealed class StreamTokClient : IDisposable
     {
-        private static readonly DataContractJsonSerializer Serializer =
-            new DataContractJsonSerializer(typeof(Envelope));
-
         private static readonly TimeSpan MinRetryDelay = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(10);
 
         private readonly Uri _uri;
+        private readonly string _helloJson;
         private readonly Action<string> _log;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private readonly ConcurrentQueue<string> _outbound = new ConcurrentQueue<string>();
         private string _lastError;
 
-        public StreamTokClient(Uri uri, Action<string> log)
+        public StreamTokClient(Uri uri, string helloJson, Action<string> log)
         {
             _uri = uri;
+            _helloJson = helloJson;
             _log = log;
         }
 
-        /// <summary>Eventos "live-event" recibidos, pendientes de mostrar en el juego.</summary>
-        public ConcurrentQueue<LiveEvent> Events { get; } = new ConcurrentQueue<LiveEvent>();
+        /// <summary>Comandos recibidos, pendientes de ejecutar en el hilo del juego.</summary>
+        public ConcurrentQueue<ModCommand> Commands { get; } = new ConcurrentQueue<ModCommand>();
 
         /// <summary>true = se conectó, false = se desconectó. Solo se encola al cambiar.</summary>
         public ConcurrentQueue<bool> StatusChanges { get; } = new ConcurrentQueue<bool>();
@@ -46,9 +46,15 @@ namespace StreamTok.GtaV
             Task.Run(() => RunAsync(_cts.Token));
         }
 
+        /// <summary>Encola un mensaje JSON para enviar. Seguro desde cualquier hilo.</summary>
+        public void Send(string json)
+        {
+            _outbound.Enqueue(json);
+        }
+
         public void Dispose()
         {
-            // Al recargar (Insert) o cerrar el juego: cortar reconexión y recepción.
+            // Al recargar (Insert) o cerrar el juego: cortar reconexión, envío y recepción.
             _cts.Cancel();
         }
 
@@ -61,7 +67,9 @@ namespace StreamTok.GtaV
                 bool wasConnected = false;
 
                 using (var ws = new ClientWebSocket())
+                using (var connection = CancellationTokenSource.CreateLinkedTokenSource(ct))
                 {
+                    Task sendLoop = null;
                     try
                     {
                         await ws.ConnectAsync(_uri, ct).ConfigureAwait(false);
@@ -72,6 +80,11 @@ namespace StreamTok.GtaV
                         _log($"WS conectado a {_uri}");
                         StatusChanges.Enqueue(true);
 
+                        // Lo pendiente de una conexión anterior ya no sirve; lo primero es presentarse.
+                        while (_outbound.TryDequeue(out _)) { }
+                        _outbound.Enqueue(_helloJson);
+
+                        sendLoop = SendLoopAsync(ws, connection.Token);
                         await ReceiveLoopAsync(ws, ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -86,6 +99,14 @@ namespace StreamTok.GtaV
                         {
                             _log($"WS error: {msg}");
                             _lastError = msg;
+                        }
+                    }
+                    finally
+                    {
+                        connection.Cancel();
+                        if (sendLoop != null)
+                        {
+                            try { await sendLoop.ConfigureAwait(false); } catch { /* cancelado */ }
                         }
                     }
                 }
@@ -115,6 +136,23 @@ namespace StreamTok.GtaV
             }
         }
 
+        private async Task SendLoopAsync(ClientWebSocket ws, CancellationToken ct)
+        {
+            // ClientWebSocket no admite dos SendAsync a la vez: un único bucle envía todo.
+            while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
+            {
+                if (_outbound.TryDequeue(out string json))
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes(json);
+                    await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Task.Delay(20, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
         private async Task ReceiveLoopAsync(ClientWebSocket ws, CancellationToken ct)
         {
             var buffer = new byte[8 * 1024];
@@ -139,38 +177,22 @@ namespace StreamTok.GtaV
 
                     if (result.MessageType == WebSocketMessageType.Text)
                     {
-                        HandleMessage(message.ToArray());
+                        HandleMessage(Encoding.UTF8.GetString(message.ToArray()));
                     }
                 }
             }
         }
 
-        private void HandleMessage(byte[] bytes)
+        private void HandleMessage(string json)
         {
-            Envelope envelope;
-            try
+            if (Protocol.TryParseCommand(json, out ModCommand command, out string error))
             {
-                using (var ms = new MemoryStream(bytes))
-                {
-                    envelope = (Envelope)Serializer.ReadObject(ms);
-                }
+                Commands.Enqueue(command);
             }
-            catch (Exception ex)
+            else if (error != null)
             {
-                // Mensaje de otro canal con otra forma, o JSON inválido: se ignora sin romper la conexión.
-                _log($"WS mensaje ignorado ({ex.GetType().Name}): {Truncate(Encoding.UTF8.GetString(bytes), 200)}");
-                return;
+                _log($"WS mensaje ignorado: {error}");
             }
-
-            if (envelope?.Channel != "live-event" || envelope.Payload == null)
-            {
-                return;
-            }
-
-            Events.Enqueue(envelope.Payload);
         }
-
-        private static string Truncate(string s, int max) =>
-            s.Length <= max ? s : s.Substring(0, max) + "…";
     }
 }

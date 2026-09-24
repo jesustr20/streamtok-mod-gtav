@@ -24,9 +24,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- JSON sin dependencias externas: DataContractJsonSerializer viene con .NET Framework,
-         así no hay que copiar DLLs extra a scripts\ ni chocar con el Newtonsoft de otros mods -->
-    <Reference Include="System.Runtime.Serialization" />
+    <!-- Todas vienen con .NET Framework: no hay DLLs extra que copiar a scripts\ -->
+    <Reference Include="System.Web.Extensions" />   <!-- JavaScriptSerializer (JSON) -->
+    <Reference Include="System.Windows.Forms" />    <!-- Keys (teclado del menú de pruebas) -->
+    <Reference Include="System.Drawing" />          <!-- PointF, Color (UI de SHVDN) -->
   </ItemGroup>
 
   <!--
