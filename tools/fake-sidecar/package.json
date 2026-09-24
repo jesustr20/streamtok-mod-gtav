@@ -1,0 +1,12 @@
+{
+  "name": "streamtok-fake-sidecar",
+  "private": true,
+  "type": "module",
+  "description": "Servidor WS de prueba que imita al sidecar de StreamTok en el puerto 7331",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -6,18 +6,23 @@ using GTA.UI;
 namespace StreamTok.GtaV
 {
     /// <summary>
-    /// Fase 1 del roadmap: SOLO confirma que ScriptHookVDotNet carga el script.
-    /// Sin WebSocket ni efectos todavía (eso es Fase 2 y 3).
+    /// Fase 2: se conecta al sidecar de StreamTok por WebSocket y muestra en pantalla
+    /// cada evento del LIVE que recibe. Todavía no ejecuta efectos (Fase 3).
     ///
-    /// Dos señales de que cargó, a propósito redundantes:
-    ///   1. Notificación en pantalla al terminar de cargar la partida.
-    ///   2. Archivo scripts\StreamTok.GtaV.log (sirve aunque la notificación no se vea).
+    /// Configuración opcional en scripts\StreamTok.GtaV.ini:
+    ///   [Connection]
+    ///   Url=ws://localhost:7331
     /// </summary>
     public sealed class StreamTokMod : Script
     {
-        private const string ModVersion = "0.1.0";
+        private const string ModVersion = "0.2.0";
+        private const string DefaultUrl = "ws://localhost:7331";
+
+        /// <summary>Máximo de notificaciones por tick, para no inundar la pantalla en ráfagas de regalos.</summary>
+        private const int MaxEventsPerTick = 3;
 
         private readonly string _logPath;
+        private readonly StreamTokClient _client;
         private bool _announced;
 
         public StreamTokMod()
@@ -25,29 +30,96 @@ namespace StreamTok.GtaV
             _logPath = Path.Combine(BaseDirectory, "StreamTok.GtaV.log");
             Log($"Constructor ejecutado: SHVDN instanció StreamTokMod v{ModVersion}.");
 
-            // No necesitamos correr cada frame en esta fase.
-            Interval = 500;
+            string url = Settings.GetValue("Connection", "Url", DefaultUrl);
+            Uri uri;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out uri) || (uri.Scheme != "ws" && uri.Scheme != "wss"))
+            {
+                Log($"Url inválida en el .ini ('{url}'); se usa {DefaultUrl}.");
+                uri = new Uri(DefaultUrl);
+            }
 
+            _client = new StreamTokClient(uri, Log);
+            _client.Start();
+
+            Interval = 100;
             Tick += OnTick;
             Aborted += OnAborted;
         }
 
         private void OnTick(object sender, EventArgs e)
         {
-            // Esperar a que termine la pantalla de carga; si no, la notificación se pierde.
-            if (_announced || Game.IsLoading)
+            // Mientras el juego carga, los eventos se quedan en cola.
+            if (Game.IsLoading)
             {
                 return;
             }
 
-            Notification.Show($"~p~StreamTok~s~ v{ModVersion} cargado ~g~OK");
-            Log("Notificación mostrada en pantalla.");
-            _announced = true;
+            if (!_announced)
+            {
+                Notification.Show($"~p~StreamTok~s~ v{ModVersion} cargado ~g~OK");
+                _announced = true;
+            }
+
+            bool connected;
+            while (_client.StatusChanges.TryDequeue(out connected))
+            {
+                Notification.Show(connected
+                    ? "~p~StreamTok~s~: ~g~conectado~s~ a la app"
+                    : "~p~StreamTok~s~: ~r~desconectado~s~, reintentando…");
+            }
+
+            LiveEvent evt;
+            for (int i = 0; i < MaxEventsPerTick && _client.Events.TryDequeue(out evt); i++)
+            {
+                string line = Describe(evt);
+                Notification.Show(line);
+                Log($"Evento: {line}");
+            }
+        }
+
+        /// <summary>
+        /// Texto de la notificación. Los valores de 'event' deben coincidir con el enum de
+        /// LiveEventSchema; los desconocidos se muestran de forma genérica.
+        /// </summary>
+        private static string Describe(LiveEvent evt)
+        {
+            string user = "~b~@" + Clean(evt.Username ?? "anónimo") + "~s~";
+
+            switch ((evt.Event ?? "").ToLowerInvariant())
+            {
+                case "gift":
+                    string gift = Clean(evt.GiftName ?? "un regalo");
+                    string amount = evt.Value.HasValue ? $" ~y~({evt.Value.Value:0.##})~s~" : "";
+                    return $"{user} envió ~y~{gift}~s~{amount}";
+                case "like":
+                    return $"{user} dio like";
+                case "follow":
+                    return $"{user} te siguió";
+                case "share":
+                    return $"{user} compartió el LIVE";
+                case "subscribe":
+                    return $"{user} se suscribió";
+                case "chat":
+                case "comment":
+                    return $"{user}: {Clean(evt.Text ?? "")}";
+                default:
+                    return $"{user} · {Clean(evt.Event ?? "evento")}";
+            }
+        }
+
+        /// <summary>
+        /// Quita '~' del texto de usuarios: GTA lo usa para códigos de formato (~r~, ~n~…)
+        /// y un nombre o comentario malicioso podría romper la notificación.
+        /// </summary>
+        private static string Clean(string s)
+        {
+            s = s.Replace("~", "");
+            return s.Length > 60 ? s.Substring(0, 60) + "…" : s;
         }
 
         private void OnAborted(object sender, EventArgs e)
         {
-            // Se dispara al recargar scripts (tecla Insert) o al cerrar el juego.
+            _client.Dispose();
             Log("Script detenido (Aborted).");
         }
 
@@ -59,7 +131,7 @@ namespace StreamTok.GtaV
             }
             catch
             {
-                // Nunca tumbar el juego por un fallo de log.
+                // Nunca tumbar el juego por un fallo de log (también se llama desde el hilo del WS).
             }
         }
     }
