@@ -58,6 +58,26 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
+        /// <summary>Crea un objeto fijo (ej. una rampa) apoyado en el suelo, con el rumbo indicado.</summary>
+        public static Prop SpawnProp(string modelName, Vector3 position, float heading)
+        {
+            Model model = Load(modelName);
+            try
+            {
+                Prop prop = World.CreateProp(model, position, new Vector3(0f, 0f, heading), false, true);
+                if (prop == null)
+                {
+                    throw new ActionException($"El juego no pudo crear '{modelName}'");
+                }
+                prop.IsPositionFrozen = true; // que no se mueva al chocarla
+                return prop;
+            }
+            finally
+            {
+                model.MarkAsNoLongerNeeded();
+            }
+        }
+
         /// <summary>Rumbo (grados) para que algo en <paramref name="position"/> mire hacia el jugador.</summary>
         public static float HeadingToPlayer(Vector3 position)
         {

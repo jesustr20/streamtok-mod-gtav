@@ -8,6 +8,109 @@ namespace StreamTok.GtaV.Actions
 {
     internal static class WorldActions
     {
+        /// <summary>Activa (bucle con clave) o desactiva (revierte con onEnd) un efecto del mundo.</summary>
+        private static void SetWorld(ActionContext ctx, string key, Action onStart, Action onTick, Action onEnd)
+        {
+            if (ctx.Bool("enabled"))
+            {
+                ctx.Scheduler.Loop(key, onStart, onTick, onEnd);
+            }
+            else if (!ctx.Scheduler.Cancel(key))
+            {
+                throw new ActionException("El efecto no estaba activo");
+            }
+        }
+
+        // ------------------------------------------------------ vehículos invisibles
+
+        // Se usa transparencia (alpha 0) y NO "invisible": en GTA, ocultar un vehículo oculta
+        // también a sus ocupantes, y el jugador debe verse siempre.
+        private static readonly HashSet<int> HiddenVehicles = new HashSet<int>();
+        private static int _invisibleFrame;
+
+        private static void VehiclesInvisibleStart()
+        {
+            HiddenVehicles.Clear();
+            _invisibleFrame = 0;
+        }
+
+        private static void VehiclesInvisibleTick()
+        {
+            Ped player = GTA.Game.Player.Character;
+            Function.Call(Hash.RESET_ENTITY_ALPHA, player); // el jugador siempre visible
+
+            if (++_invisibleFrame % 15 != 0)
+            {
+                return; // buscar vehículos nuevos cada ~15 frames basta
+            }
+
+            foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 150f))
+            {
+                if (HiddenVehicles.Add(v.Handle))
+                {
+                    Function.Call(Hash.SET_ENTITY_ALPHA, v, 0, false);
+                }
+            }
+        }
+
+        private static void VehiclesInvisibleEnd()
+        {
+            foreach (int handle in HiddenVehicles)
+            {
+                if (Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                {
+                    Function.Call(Hash.RESET_ENTITY_ALPHA, handle);
+                }
+            }
+            HiddenVehicles.Clear();
+        }
+
+        // ------------------------------------------------------ coches rápidos
+
+        private const int FastDrivingStyle = 786468;   // apurado: esquiva y adelanta
+        private const int NormalDrivingStyle = 786603; // normal
+        private static readonly HashSet<int> FastVehicles = new HashSet<int>();
+        private static int _trafficFrame;
+
+        private static void TrafficFastTick()
+        {
+            if (++_trafficFrame % 30 != 0)
+            {
+                return;
+            }
+
+            Ped player = GTA.Game.Player.Character;
+            foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 150f))
+            {
+                Ped driver = v.Driver;
+                if (driver == null || !driver.Exists() || driver.IsPlayer || !FastVehicles.Add(v.Handle))
+                {
+                    continue;
+                }
+
+                Function.Call(Hash.SET_DRIVER_ABILITY, driver, 1.0f);
+                Function.Call(Hash.SET_DRIVER_AGGRESSIVENESS, driver, 1.0f);
+                Function.Call(Hash.TASK_VEHICLE_DRIVE_WANDER, driver, v, 70f, FastDrivingStyle);
+            }
+        }
+
+        private static void TrafficFastEnd()
+        {
+            foreach (int handle in FastVehicles)
+            {
+                if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                {
+                    continue;
+                }
+                int driver = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1, false);
+                if (driver != 0 && driver != GTA.Game.Player.Character.Handle)
+                {
+                    Function.Call(Hash.TASK_VEHICLE_DRIVE_WANDER, driver, handle, 20f, NormalDrivingStyle);
+                }
+            }
+            FastVehicles.Clear();
+        }
+
         /// <summary>
         /// Cámara temblando + sacudones periódicos a vehículos y peds cercanos (y a veces al jugador).
         /// </summary>
@@ -105,6 +208,32 @@ namespace StreamTok.GtaV.Actions
                     ParamDef.Int("intensity", 5, 1, 10),
                 },
                 Earthquake);
+
+            // --- Efectos del mundo que se activan/desactivan (enabled): quedan hasta que otra acción los apague.
+
+            yield return new ActionDef("vehicles_invisible", "Vehículos invisibles", false,
+                new[] { ParamDef.Bool("enabled", true) },
+                ctx => SetWorld(ctx, "vehicles_invisible", VehiclesInvisibleStart, VehiclesInvisibleTick, VehiclesInvisibleEnd));
+
+            yield return new ActionDef("traffic_fast", "Coches rápidos", false,
+                new[] { ParamDef.Bool("enabled", true) },
+                ctx => SetWorld(ctx, "traffic_fast", null, TrafficFastTick, TrafficFastEnd));
+
+            yield return new ActionDef("gravity_low", "Gravedad reducida", false,
+                new[]
+                {
+                    ParamDef.Bool("enabled", true),
+                    ParamDef.Enum("level", "low", "low", "very_low", "zero"),
+                },
+                ctx =>
+                {
+                    if (ctx.Bool("enabled"))
+                    {
+                        int level = ctx.Enum("level") == "zero" ? 3 : ctx.Enum("level") == "very_low" ? 2 : 1;
+                        Function.Call(Hash.SET_GRAVITY_LEVEL, level); // cambiar de nivel estando activa también vale
+                    }
+                    SetWorld(ctx, "gravity_low", null, null, () => Function.Call(Hash.SET_GRAVITY_LEVEL, 0));
+                });
 
             yield return new ActionDef("set_weather", "Clima", false,
                 new[] { ParamDef.Enum("weather", "rain", GameData.Keys(GameData.Weather)) },

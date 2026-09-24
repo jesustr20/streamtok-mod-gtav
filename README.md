@@ -14,7 +14,8 @@ en StreamTok. Catálogo completo y plan de tandas: [`docs/CATALOGO.md`](docs/CAT
 | 1. Toolchain + "hola mundo" | ✅ Legacy (v0.1.0) · ⏳ Enhanced (bloqueado: ScriptHookV aún no soporta 1.0.1158.16) |
 | 2. Comunicación con StreamTok + tanda 1 (10 acciones) | ✅ v0.2.0 |
 | 3. Tanda 2: vehículos, jugador, armas, dinero + regla de nombres (29 acciones) | ✅ v0.3.0 |
-| 4. Tanda 3: ebrio, motorizados, tuning, terremoto, teletransporte (34 acciones; "convertir en animal" pausado) | 🚧 v0.4.0 |
+| 4. Tanda 3: ebrio, motorizados, tuning, terremoto, teletransporte (34 acciones; "convertir en animal" pausado) | ✅ v0.4.0 |
+| 5. Tanda 4: atacantes (armas, curar, cerdos), compañero, NPC furioso, rampa, vehículos invisibles, coches rápidos, gravedad (45 acciones) | 🚧 v0.5.0 |
 | 5+. Personajes custom, efectos ⭐⭐⭐, modos de juego, empaquetado para "Instalar Mod" | Pendiente |
 
 ## Contrato WebSocket (`ws://localhost:7331`)

@@ -27,6 +27,13 @@ namespace StreamTok.GtaV.Actions
                 new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "random") },
                 ctx => SpawnVehicle(ctx, drive: false));
 
+            yield return new ActionDef("spawn_ramp", "Generar rampa", true,
+                new[] { ParamDef.Int("distance", 25, 10, 60) },
+                SpawnRamp);
+
+            yield return new ActionDef("ramps_remove", "Remover rampas", false, null,
+                ctx => ctx.Tracker.RemoveKind(EntityTracker.KindRamp));
+
             yield return new ActionDef("vehicles_remove", "Remover vehículos", false, null,
                 ctx => ctx.Tracker.RemoveKind(EntityTracker.KindVehicle));
 
@@ -223,6 +230,33 @@ namespace StreamTok.GtaV.Actions
                 Function.Call(Hash.SET_VEHICLE_DAMAGE, v, hits[i, 0], hits[i, 1], hits[i, 2], 1000f, 1.5f, true);
             }
         }
+
+        /// <summary>
+        /// Rampa delante del jugador (o de su vehículo), mirando hacia donde va, a "distance" metros.
+        /// </summary>
+        private static void SpawnRamp(ActionContext ctx)
+        {
+            ctx.Tracker.ClampProps(1);
+
+            Ped player = GTA.Game.Player.Character;
+            Entity reference = player.IsInVehicle() ? (Entity)player.CurrentVehicle : player;
+            Vector3 position = reference.Position + reference.ForwardVector * ctx.Int("distance");
+
+            float ground = World.GetGroundHeight(position + new Vector3(0f, 0f, 5f));
+            if (ground > 0f)
+            {
+                position.Z = ground;
+            }
+
+            // El modelo de la rampa sube "hacia atrás": se gira 180° para que se suba de frente.
+            Prop ramp = Spawner.SpawnProp(RampModel, position, reference.Heading + RampHeadingOffset);
+            ctx.Tracker.Track(ramp, ctx.NameTag, EntityTracker.KindRamp, 2.5f);
+        }
+
+        private const string RampModel = "prop_mp_ramp_03";
+
+        /// <summary>Ajuste de orientación del modelo de rampa (0 o 180 según el modelo).</summary>
+        private const float RampHeadingOffset = 0f;
 
         /// <summary>
         /// VehicleWheel.BreakOff no existe en SHVDN 3.6 (contra el que compilamos), pero sí en el
