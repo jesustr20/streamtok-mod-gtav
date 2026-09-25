@@ -17,7 +17,7 @@ El nombre del viewer va **siempre encima del objeto**:
 | **Lo que afecta al personaje** (su vehículo, sus efectos, su transformación) | 🔁 Si otro viewer repite la misma acción, **su nombre reemplaza al anterior** |
 
 - Los **efectos del personaje no tienen duración**: se activan o desactivan con `enabled` y quedan hasta que otra acción los cambie.
-- Los **efectos del mundo** puntuales (terremoto) tienen `seconds`; si se repiten, se suma el tiempo.
+- Los **efectos del mundo** puntuales (terremoto, meteoritos, agujero negro, tornado) tienen `seconds`; si se repiten, se suma el tiempo.
 - Los **efectos del mundo** persistentes (vehículos invisibles, coches rápidos, gravedad) se activan o desactivan con `enabled`.
 
 ## 1. NPC y atacantes
@@ -90,9 +90,9 @@ El nombre del viewer va **siempre encima del objeto**:
 | `set_time` | Hora del día | `hour` | ✅ v0.2 |
 | `earthquake` | Terremoto | `seconds`, `intensity` | 🚧 v0.4 |
 | `gravity_low` | Gravedad reducida | `enabled`, `level` (low, very_low, zero) | 🚧 v0.5 |
-| `meteor_shower` | Lluvia de meteoritos ⭐⭐⭐ | `seconds`, `density` | ⏳ |
-| `black_hole` | Agujero negro ⭐⭐⭐ | `seconds`, `strength` | ⏳ |
-| `tornado` | Tornado ⭐⭐⭐ | `seconds`, `strength` | ⏳ |
+| `meteor_shower` | Lluvia de meteoritos ⭐⭐⭐ (de noche: estrellas fugaces y bolas de fuego que impactan con explosión y fuego) | `seconds`, `density`, `night` | 🚧 v0.6 |
+| `black_hole` | Agujero negro ⭐⭐⭐ (se abre en el cielo con disco de acreción y terremoto; tormenta; la gente huye aterrada; lo que llega al centro desaparece y el jugador muere) | `seconds`, `strength` | 🚧 v0.6 |
+| `tornado` | Tornado ⭐⭐⭐ (embudo de humo con escombros y tormenta; avanza zigzagueando y levanta lo que atrapa) | `seconds`, `strength` | 🚧 v0.6 |
 
 ## 6. Personajes custom (Fases 6-7)
 

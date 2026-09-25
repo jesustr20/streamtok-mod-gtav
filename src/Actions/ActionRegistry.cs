@@ -29,6 +29,7 @@ namespace StreamTok.GtaV.Actions
                 .Concat(VehicleActions.All())
                 .Concat(PlayerActions.All())
                 .Concat(WeaponActions.All())
-                .Concat(WorldActions.All()));
+                .Concat(WorldActions.All())
+                .Concat(SpectacleActions.All()));
     }
 }

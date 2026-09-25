@@ -248,7 +248,7 @@ namespace StreamTok.GtaV.Actions
                 position.Z = ground;
             }
 
-            // El modelo de la rampa sube "hacia atrás": se gira 180° para que se suba de frente.
+            // La rampa queda mirando hacia donde va el jugador: se sube de frente.
             Prop ramp = Spawner.SpawnProp(RampModel, position, reference.Heading + RampHeadingOffset);
             ctx.Tracker.Track(ramp, ctx.NameTag, EntityTracker.KindRamp, 2.5f);
         }
