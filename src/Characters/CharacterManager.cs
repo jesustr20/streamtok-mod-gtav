@@ -67,7 +67,11 @@ namespace StreamTok.GtaV.Characters
         // ================================================================ alta
 
         /// <summary>Configura un personaje recién creado según sus habilidades y lo registra.</summary>
-        public void Setup(Ped ped, CharacterDef def, bool hostile, string nameTag)
+        /// <param name="targetProvider">
+        /// Opcional (modo Pelea): elige el objetivo de este personaje en vez de la regla normal
+        /// (enemigos → jugador, aliados → enemigo más cercano).
+        /// </param>
+        public void Setup(Ped ped, CharacterDef def, bool hostile, string nameTag, Func<Ped, Ped> targetProvider = null)
         {
             // Apariencia por defecto del modelo: GTA elige piezas de ropa al azar y muchos add-on
             // peds solo traen completa la variante por defecto (si no, faltan zapatos, manos…).
@@ -77,6 +81,40 @@ namespace StreamTok.GtaV.Characters
             ped.MaxHealth = def.Health + 100;
             ped.Health = def.Health + 100;
 
+            Configure(ped, def);
+
+            int now = GTA.Game.GameTime;
+            _active.Add(new Active
+            {
+                Ped = ped,
+                Def = def,
+                Hostile = hostile,
+                NameTag = nameTag,
+                TargetProvider = targetProvider,
+                NextKi = now + 2000 + _rng.Next(2000),
+                NextKame = now + 6000 + _rng.Next(4000),
+                NextFlight = now + 5000 + _rng.Next(5000),
+            });
+        }
+
+        /// <summary>
+        /// Cambia las habilidades de un personaje ya creado (ej. sube de nivel en el modo Pelea).
+        /// La vida no se toca: la maneja quien llama.
+        /// </summary>
+        public void Upgrade(Ped ped, CharacterDef def)
+        {
+            Active a = _active.Find(x => x.Ped == ped);
+            if (a == null)
+            {
+                return;
+            }
+            a.Def = def;
+            Configure(ped, def);
+        }
+
+        /// <summary>Inmunidades, estilo de combate y animaciones según las habilidades.</summary>
+        private void Configure(Ped ped, CharacterDef def)
+        {
             bool strong = def.Has("super_strength");
             bool tank = def.Has("tank");
             bool mobile = def.Has("flight") || def.Has("speed");
@@ -119,18 +157,6 @@ namespace StreamTok.GtaV.Characters
 
             if (def.Has("energy_blast")) Function.Call(Hash.REQUEST_ANIM_DICT, ChargeAnimDict);
             if (def.Has("flight")) Function.Call(Hash.REQUEST_ANIM_DICT, FlyAnimDict);
-
-            int now = GTA.Game.GameTime;
-            _active.Add(new Active
-            {
-                Ped = ped,
-                Def = def,
-                Hostile = hostile,
-                NameTag = nameTag,
-                NextKi = now + 2000 + _rng.Next(2000),
-                NextKame = now + 6000 + _rng.Next(4000),
-                NextFlight = now + 5000 + _rng.Next(5000),
-            });
         }
 
         // ================================================================ cada frame
@@ -167,14 +193,19 @@ namespace StreamTok.GtaV.Characters
                     Function.Call(Hash.SET_PED_MOVE_RATE_OVERRIDE, a.Ped, 0.8f); // camina pesado
                 }
 
-                if (a.Def.Has("dodge")) Dodge(a, player, now);
+                if (a.Def.Has("dodge")) Dodge(a, target ?? player, now);
                 if (a.Def.Has("speed")) Speed(a, target, now);
                 if (a.Def.Has("flight")) Flight(a, target, now);
                 if (a.Def.Has("energy_blast")) EnergyBlast(a, target, now);
 
-                if (a.Hostile && a.Def.Has("super_strength"))
+                if (a.Def.Has("super_strength"))
                 {
-                    Knockback(a.Ped, player);
+                    // Enemigo normal: lanza al jugador. En el modo Pelea: lanza a su objetivo.
+                    Ped victim = a.TargetProvider != null ? target : a.Hostile ? player : null;
+                    if (victim != null && victim.Exists())
+                    {
+                        Knockback(a.Ped, victim, a.Def.PowerScale);
+                    }
                 }
 
                 bool bossBar = false;
@@ -209,6 +240,16 @@ namespace StreamTok.GtaV.Characters
         /// <summary>Enemigos: el jugador. Aliados: el enemigo vivo más cercano (se recalcula cada ~0,5 s).</summary>
         private Ped TargetOf(Active a, Ped player, int now)
         {
+            if (a.TargetProvider != null)
+            {
+                if (now >= a.NextTargetScan || a.Target == null || !a.Target.Exists() || a.Target.IsDead)
+                {
+                    a.NextTargetScan = now + 500;
+                    a.Target = a.TargetProvider(a.Ped);
+                }
+                return a.Target;
+            }
+
             if (a.Hostile)
             {
                 return player.IsDead ? null : player;
@@ -291,6 +332,7 @@ namespace StreamTok.GtaV.Characters
                     Velocity = dir * KiSpeed,
                     Target = target,
                     Owner = a.Ped,
+                    Scale = a.Def.PowerScale,
                     Color = a.Def.Energy,
                     Born = now,
                 });
@@ -356,7 +398,7 @@ namespace StreamTok.GtaV.Characters
             if (now >= a.NextBeamBlast)
             {
                 a.NextBeamBlast = now + 260;
-                Function.Call(Hash.ADD_EXPLOSION, end.X, end.Y, end.Z, 5, 1.2f, true, false, 0.5f, false);
+                Function.Call(Hash.ADD_EXPLOSION, end.X, end.Y, end.Z, 5, 1.2f * a.Def.PowerScale, true, false, 0.5f, false);
             }
 
             if (now >= a.StageEnds)
@@ -404,7 +446,7 @@ namespace StreamTok.GtaV.Characters
                     if (!expired)
                     {
                         // 0 = granada: explosión chica.
-                        Function.Call(Hash.ADD_EXPLOSION, p.Position.X, p.Position.Y, p.Position.Z, 0, 0.6f, true, false, 0.2f, false);
+                        Function.Call(Hash.ADD_EXPLOSION, p.Position.X, p.Position.Y, p.Position.Z, 0, 0.6f * p.Scale, true, false, 0.2f, false);
                     }
                     _projectiles.RemoveAt(i);
                 }
@@ -566,8 +608,8 @@ namespace StreamTok.GtaV.Characters
             }
         }
 
-        /// <summary>Si este personaje acaba de dañar al jugador, lo lanza lejos.</summary>
-        private static void Knockback(Ped attacker, Ped player)
+        /// <summary>Si este personaje acaba de dañar a su víctima (el jugador u otro ped), la lanza lejos.</summary>
+        private static void Knockback(Ped attacker, Ped player, float scale = 1f)
         {
             if (player.IsDead || !Function.Call<bool>(Hash.HAS_ENTITY_BEEN_DAMAGED_BY_ENTITY, player, attacker, true))
             {
@@ -584,7 +626,7 @@ namespace StreamTok.GtaV.Characters
             {
                 Function.Call(Hash.SET_PED_TO_RAGDOLL, player, 2500, 2500, 0, false, false, false);
             }
-            Function.Call(Hash.APPLY_FORCE_TO_ENTITY, body, 1, away.X * 25f, away.Y * 25f, 12f, 0f, 0f, 0f, 0, false, true, true, false, true);
+            Function.Call(Hash.APPLY_FORCE_TO_ENTITY, body, 1, away.X * 25f * scale, away.Y * 25f * scale, 12f * scale, 0f, 0f, 0f, 0, false, true, true, false, true);
         }
 
         private static int Percent(float fraction) =>
@@ -661,6 +703,7 @@ namespace StreamTok.GtaV.Characters
             public CharacterDef Def;
             public bool Hostile;
             public string NameTag;
+            public Func<Ped, Ped> TargetProvider;
 
             public Ped Target;
             public int NextTargetScan;
@@ -688,6 +731,7 @@ namespace StreamTok.GtaV.Characters
             public Vector3 Velocity;
             public Ped Target;
             public Ped Owner;
+            public float Scale = 1f;
             public Color Color;
             public int Born;
         }

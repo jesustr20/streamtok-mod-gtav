@@ -5,6 +5,7 @@ using System.Linq;
 using StreamTok.GtaV.Characters;
 using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
+using StreamTok.GtaV.Modes;
 
 namespace StreamTok.GtaV.Actions
 {
@@ -32,8 +33,14 @@ namespace StreamTok.GtaV.Actions
         public int? Max { get; private set; }
         public string[] Options { get; private set; }
 
-        public static ParamDef Int(string name, int def, int min, int max) =>
-            new ParamDef { Name = name, Type = "int", Default = def, Min = min, Max = max };
+        /// <summary>
+        /// Valores sugeridos de un "int" (ej. 5, 10, 15… minutos). Son solo atajos: se acepta
+        /// cualquier número dentro de min-max (valor personalizado).
+        /// </summary>
+        public int[] Presets { get; private set; }
+
+        public static ParamDef Int(string name, int def, int min, int max, params int[] presets) =>
+            new ParamDef { Name = name, Type = "int", Default = def, Min = min, Max = max, Presets = presets.Length > 0 ? presets : null };
 
         public static ParamDef Enum(string name, string def, params string[] options) =>
             new ParamDef { Name = name, Type = "enum", Default = def, Options = options };
@@ -124,9 +131,11 @@ namespace StreamTok.GtaV.Actions
     /// <summary>Servicios compartidos por todas las acciones.</summary>
     internal sealed class ActionServices
     {
-        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, Random rng)
+        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, ChiliadMode chiliad, ArenaMode arena, Random rng)
         {
+            Arena = arena;
             Characters = characters;
+            Chiliad = chiliad;
             Tracker = tracker;
             Effects = effects;
             Scheduler = scheduler;
@@ -137,6 +146,8 @@ namespace StreamTok.GtaV.Actions
         public PlayerEffects Effects { get; }
         public FrameScheduler Scheduler { get; }
         public CharacterManager Characters { get; }
+        public ChiliadMode Chiliad { get; }
+        public ArenaMode Arena { get; }
         public Random Rng { get; }
     }
 
@@ -160,6 +171,8 @@ namespace StreamTok.GtaV.Actions
         public PlayerEffects Effects => _services.Effects;
         public FrameScheduler Scheduler => _services.Scheduler;
         public CharacterManager Characters => _services.Characters;
+        public ChiliadMode Chiliad => _services.Chiliad;
+        public ArenaMode Arena => _services.Arena;
         public Random Rng => _services.Rng;
 
         public int Int(string name) => (int)_values[name];

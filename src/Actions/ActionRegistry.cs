@@ -29,13 +29,15 @@ namespace StreamTok.GtaV.Actions
         public ActionDef Find(string id) =>
             id != null && _byId.TryGetValue(id, out ActionDef a) ? a : null;
 
-        public static ActionRegistry CreateDefault(IReadOnlyList<CharacterDef> characters) => new ActionRegistry(
+        public static ActionRegistry CreateDefault(IReadOnlyList<CharacterDef> characters, string[] arenaCharacterIds) => new ActionRegistry(
             NpcActions.All()
                 .Concat(VehicleActions.All())
                 .Concat(PlayerActions.All())
                 .Concat(WeaponActions.All())
                 .Concat(WorldActions.All())
                 .Concat(SpectacleActions.All())
+                .Concat(ChiliadActions.All())
+                .Concat(ArenaActions.All(arenaCharacterIds))
                 .Concat(CharacterActions.All(characters)));
     }
 }

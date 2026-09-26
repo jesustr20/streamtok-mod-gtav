@@ -20,7 +20,9 @@ Personajes custom: [`docs/PERSONAJES.md`](docs/PERSONAJES.md).
 | 6. Tanda 5: lluvia de meteoritos, agujero negro, tornado (48 acciones) | ✅ v0.6.0 |
 | 7. Personajes custom: JSON, add-on peds, habilidades super_strength/tank/gunslinger/aura (49 acciones) | ✅ v0.7.0 |
 | 8. Habilidades avanzadas: ki y Kamehameha, vuelo, esquivar, súper velocidad | ✅ v0.8.0 |
-| 8.1 Catálogo para el panel: category, icon, description e image en cada acción | 🚧 v0.8.1 |
+| 8.1 Catálogo para el panel: category, icon, description e image en cada acción | ✅ v0.8.1 |
+| 8.2 Modo Chiliad: reto a la cima con cuenta regresiva, GPS apagado, accidentes (66 acciones + personajes) | ✅ v0.8.2 |
+| 8.3 Modo Pelea de viewers: arena cerrada, vida por donación, armas, poderes temporales, kills y Top 5 (75 acciones + personajes) | 🚧 v0.8.3 |
 | 5+. Personajes custom, efectos ⭐⭐⭐, modos de juego, empaquetado para "Instalar Mod" | Pendiente |
 
 ## Contrato WebSocket (`ws://localhost:7331`)
@@ -29,12 +31,13 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 
 | Canal | Dirección | Payload |
 |---|---|---|
-| `mod-hello` | mod → app | `{ mod, version, actions: [{ id, name, category, icon, description, image?, supportsNameTag, params: [{ name, type, default, min?, max?, options? }] }] }` |
+| `mod-hello` | mod → app | `{ mod, version, actions: [{ id, name, category, icon, description, image?, supportsNameTag, params: [{ name, type, default, min?, max?, options?, presets? }] }] }` |
 | `mod-command` | app → mod | `{ id, action, params, nameTag?, notify? }` |
 | `mod-ack` | mod → app | `{ id, ok, error? }` |
 
 - **`nameTag`**: texto que se dibuja sobre cada entidad que cree la acción (el nombre del viewer).
 - **`notify`**: texto opcional para la notificación en pantalla.
+- **`presets`** (solo `int`): valores sugeridos para mostrar como botones (ej. 5, 10, 15 min); se acepta cualquier número entre `min` y `max`.
 - El mod **recorta todo parámetro a sus límites** y usa el default si llega algo inválido.
 - **Nombres:** todo spawn aparte (carro al costado, animales, atacantes) lleva su propio nombre
   fijo mientras exista; nunca se reemplaza. Lo que afecta al personaje sí se reemplaza:
