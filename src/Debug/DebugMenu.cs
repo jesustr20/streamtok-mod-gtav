@@ -63,7 +63,7 @@ namespace StreamTok.GtaV.Debug
         private bool _open;
         private int _paramIndex = -1; // -1 = navegando una lista
 
-        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena)
+        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour)
         {
             _run = run;
 
@@ -72,7 +72,7 @@ namespace StreamTok.GtaV.Debug
                 _values[a.Id] = a.Params.ToDictionary(p => p.Name, p => p.Default);
             }
 
-            _path.Push(new Level { Menu = BuildRoot(actions, chiliad, arena) });
+            _path.Push(new Level { Menu = BuildRoot(actions, chiliad, arena, parkour) });
 
             _text = new GTA.UI.TextElement("", PointF.Empty, 0.32f, Normal, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Left, true, false);
             _background = new GTA.UI.ContainerElement(new PointF(X, Y), new SizeF(Width, 0f), Color.FromArgb(190, 0, 0, 0));
@@ -80,7 +80,7 @@ namespace StreamTok.GtaV.Debug
 
         // ================================================================ estructura
 
-        private static Item BuildRoot(IReadOnlyList<ActionDef> actions, ChiliadMode mode, ArenaMode arenaMode)
+        private static Item BuildRoot(IReadOnlyList<ActionDef> actions, ChiliadMode mode, ArenaMode arenaMode, ParkourMode parkourMode)
         {
             var byId = actions.ToDictionary(a => a.Id, StringComparer.OrdinalIgnoreCase);
 
@@ -145,6 +145,23 @@ namespace StreamTok.GtaV.Debug
                     }
                 }
                 root.Children.Add(arena);
+            }
+
+            // --- Parkour: interruptor + opciones.
+            if (byId.TryGetValue("parkour_start", out ActionDef pStart) && byId.TryGetValue("parkour_stop", out ActionDef pStop))
+            {
+                Func<bool> parkourActive = () => parkourMode.IsActive;
+                var parkour = new Item { Title = "Parkour", IsOn = parkourActive };
+                parkour.Children.Add(new Item { Action = pStart, OffAction = pStop, IsOn = parkourActive });
+                foreach (string id in new[] { "parkour_wind", "parkour_ragdoll", "parkour_remove_floor", "parkour_super_jump",
+                                              "parkour_highest", "parkour_back_to_start", "parkour_set_place" })
+                {
+                    if (byId.TryGetValue(id, out ActionDef a))
+                    {
+                        parkour.Children.Add(new Item { Action = a, NeedsOn = id == "parkour_set_place" ? null : parkourActive });
+                    }
+                }
+                root.Children.Add(parkour);
             }
 
             return root;

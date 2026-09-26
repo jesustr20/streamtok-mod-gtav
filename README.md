@@ -22,8 +22,40 @@ Personajes custom: [`docs/PERSONAJES.md`](docs/PERSONAJES.md).
 | 8. Habilidades avanzadas: ki y Kamehameha, vuelo, esquivar, súper velocidad | ✅ v0.8.0 |
 | 8.1 Catálogo para el panel: category, icon, description e image en cada acción | ✅ v0.8.1 |
 | 8.2 Modo Chiliad: reto a la cima con cuenta regresiva, GPS apagado, accidentes (66 acciones + personajes) | ✅ v0.8.2 |
-| 8.3 Modo Pelea de viewers: arena cerrada, vida por donación, armas, poderes temporales, kills y Top 5 (75 acciones + personajes) | 🚧 v0.8.3 |
-| 5+. Personajes custom, efectos ⭐⭐⭐, modos de juego, empaquetado para "Instalar Mod" | Pendiente |
+| 8.3 Modo Pelea de viewers: arena cerrada, vida por donación, armas, poderes temporales, kills y Top 5 (75 acciones + personajes) | ✅ v0.8.3 |
+| 8.4 Modo Parkour: torre por semilla en lugar abierto, piezas pegadas, sin daño por caída, acciones de viewers, cargador de mapas de Menyoo (84 acciones + personajes) | ✅ v0.8.4 |
+| 8.5 Parkour estilo Only Up!: torre propia con objetos del juego base, tramos temáticos, todo conectado | ⏸️ En pausa (el mapa "Only Up in GTA 5" necesita Menyoo, que cierra el juego en 1.0.3889.0) |
+| 9. Producción: logs en %LOCALAPPDATA% con rotación, F7 apagado por defecto, prueba de estrés, README para streamers | Pendiente |
+| 10. Integración con la app StreamTok (v1.0) | Pendiente |
+
+## Modos de juego
+
+Cada modo tiene su sección en el menú F7 (interruptor ON/OFF + opciones) y su categoría en `mod-hello`.
+Detalle completo en [`docs/CATALOGO.md`](docs/CATALOGO.md).
+
+| Modo | Resumen |
+|---|---|
+| **Monte Chiliad** (`chiliad`) | Llegar a la meta desde la entrada del aeropuerto (1er piso). Iniciar enciende todo (GPS, ruta, tiempo límite, reaparición, taxi) y cada cosa tiene su interruptor. Tiempo con minutos sugeridos o personalizado. Meta tipo checkpoint: quedarse `hold_seconds`. Taxi con "[E]" al túnel del camino de tierra. |
+| **Pelea de viewers** (`arena`) | Todos contra todos en arena cerrada (campo libre: sin policía ni tráfico). Todos empiezan con 100 de vida, sin armas ni poderes; vida por monedas, armas permanentes, poderes temporales. Gana el último en pie y empieza otra ronda. El jugador pelea o queda libre ("Yo peleo"). |
+| **Parkour** (`parkour`) | Torre al azar con semilla en lugar abierto (Sandy Shores por defecto). Piezas grandes y pegadas, sin encimarse. Sin daño por caída; campo libre. Viewers: viento, tropezón, quitar el piso, súper salto, volver a lo más alto o al inicio. También carga mapas de parkour de Menyoo (`course`, ver abajo). |
+
+**Puntos que se marcan en el juego y se guardan** (carpeta `scripts`):
+
+| Archivo | Qué guarda | Acción |
+|---|---|---|
+| `StreamTok.ChiliadGoal.txt` | Meta del Chiliad | Marcar meta aquí |
+| `StreamTok.ChiliadStart.txt` | Salida del Chiliad | Marcar salida aquí |
+| `StreamTok.ChiliadTaxi.txt` | Parada del taxi (por defecto -508.90, 4936.64, 146.88) | Marcar parada del taxi aquí |
+| `StreamTok.ArenaPlace.txt` | Lugar de la arena | Marcar arena aquí |
+| `StreamTok.ParkourPlace.txt` | Inicio del parkour | Marcar parkour aquí |
+
+**Mapas de parkour de Menyoo:** poner el `.xml` en `scripts\StreamTok.Parkour\` (ej. `OnlyUp.xml`), recargar
+con Insert y elegir `course` = nombre del archivo. Se crean todas sus piezas (objetos y vehículos congelados)
+con posición y giro exactos; salida = ReferenceCoords, meta = pieza más alta. No hace falta Menyoo para
+cargarlos, **salvo** que el mapa use objetos de mods de props (ej. *Custom Props Add-On*): esos solo se pueden
+crear con Menyoo instalado, y Menyoo 1.8.1 / latest (2023) **cierra el juego** en GTA V Legacy 1.0.3889.0.
+Si faltan objetos, se avisa en pantalla y en el log. Los mapas son de sus autores: no se suben al repo
+(`.gitignore`: `**/StreamTok.Parkour/*.xml`).
 
 ## Contrato WebSocket (`ws://localhost:7331`)
 
@@ -51,8 +83,11 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 
 ## Probar sin StreamTok
 
-- **Menú F7 dentro del juego:** lista todas las acciones con sus parámetros. Usa el mismo
-  camino de ejecución que los comandos reales.
+- **Menú F7 dentro del juego**, por secciones: *Juego normal* (por categoría), *Monte Chiliad*,
+  *Pelea de viewers* y *Parkour*. Usa el mismo camino de ejecución que los comandos reales.
+  - Arriba/Abajo elegir · Enter/Derecha entrar o ejecutar · Izquierda/Retroceso volver · F7 cerrar.
+  - En los parámetros: Izq/Der cambia el valor (salta entre los sugeridos); **Shift** = de 1 en 1 (personalizado) o x10.
+  - Los ajustes elegidos se recuerdan hasta recargar el mod (Insert) o cerrar el juego.
 - **Simulador** (`tools/fake-sidecar`): servidor WS que imita a StreamTok.
   ```powershell
   cd tools\fake-sidecar
@@ -69,6 +104,8 @@ Url=ws://localhost:7331
 [Limits]
 MaxSpawnedPeds=100
 MaxSpawnedVehicles=20
+[Arena]
+HealthTiers=1:20,10:25,100:30,500:40,1000:50   ; desde X monedas : vida por moneda
 [Debug]
 MenuEnabled=true
 TestNameTag=Viewer de prueba
@@ -132,3 +169,5 @@ Log del mod: `scripts\StreamTok.GtaV.log`.
 | `ScriptHookVDotNet.log` dice "directory is missing" | La carpeta debe llamarse exactamente `scripts` y estar junto al `.exe` |
 | F4 no hace nada | SHVDN no cargó: falta el VC++ Redist, archivos bloqueados (`Unblock-File`) o versiones mezcladas |
 | No se crean logs y el juego está en `Program Files` | Windows no deja escribir ahí sin permisos; mueve el juego a otra biblioteca de Steam |
+| El juego se cierra en el launcher de Rockstar y `Menyoo.log` se corta en `MODULEINFO` | Menyoo no es compatible con la versión del juego: quitar `Menyoo.asi` y `menyooStuff` |
+| Un mapa de parkour tiene huecos / aviso "faltan X objetos" | El mapa usa objetos de un mod de props (ver "Mapas de parkour de Menyoo") |

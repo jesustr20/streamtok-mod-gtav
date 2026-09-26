@@ -58,6 +58,7 @@ namespace StreamTok.GtaV
             var tracker = new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20));
             var scheduler = new FrameScheduler(Log);
             var characterManager = new CharacterManager(tracker, rng);
+            var parkour = new ParkourMode(tracker, Log, BaseDirectory);
             var arena = new ArenaMode(tracker, characterManager, characters, scheduler, rng, Log, BaseDirectory,
                 Setting("Arena", "HealthTiers", ArenaMode.DefaultHealthTiers));
             _services = new ActionServices(
@@ -67,8 +68,9 @@ namespace StreamTok.GtaV
                 characterManager,
                 new ChiliadMode(tracker, scheduler, rng, Log, BaseDirectory),
                 arena,
+                parkour,
                 rng);
-            _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds);
+            _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses);
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
 
             string url = Setting("Connection", "Url", DefaultUrl);
@@ -83,7 +85,7 @@ namespace StreamTok.GtaV
 
             if (Setting("Debug", "MenuEnabled", true))
             {
-                _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena);
+                _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour);
             }
 
             Log($"Catálogo: {_registry.All.Count} acciones. Menú de pruebas: {(_menu != null ? "F7" : "desactivado")}.");
@@ -132,6 +134,7 @@ namespace StreamTok.GtaV
             _services.Effects.Update();
             _services.Chiliad.Update();
             _services.Arena.Update();
+            _services.Parkour.Update();
             _menu?.Draw();
         }
 
@@ -188,6 +191,7 @@ namespace StreamTok.GtaV
             _services.Characters.Clear();
             _services.Chiliad.ClearState(); // blip, radar y jugador descongelado
             _services.Arena.Clear();
+            _services.Parkour.Stop(quiet: true);
             _services.Effects.EndAll();
             PlayerTransform.RestoreNow(); // no habrá más frames: sin pasos
 

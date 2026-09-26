@@ -20,6 +20,7 @@ namespace StreamTok.GtaV.Actions
         public const string Character = "character";
         public const string Chiliad = "chiliad";
         public const string Arena = "arena";
+        public const string Parkour = "parkour";
         public const string Other = "other";
 
         private static readonly Dictionary<string, string[]> Meta = new Dictionary<string, string[]>
@@ -82,6 +83,15 @@ namespace StreamTok.GtaV.Actions
             ["tornado"]             = new[] { Spectacle, "tornado", "Un tornado avanza hacia el jugador" },
 
             ["weapon_random"]       = new[] { Weapon, "weapon_random", "Un arma nueva al azar cada vez; con la rueda completa, suma munición" },
+            ["parkour_start"]       = new[] { Parkour, "parkour", "Torre estilo Only Up! desde el suelo hasta el cielo (semilla = misma torre)" },
+            ["parkour_stop"]        = new[] { Parkour, "parkour_stop", "Termina el parkour y borra la torre" },
+            ["parkour_wind"]        = new[] { Parkour, "wind", "Empujón de viento hacia un costado" },
+            ["parkour_ragdoll"]     = new[] { Parkour, "ragdoll", "El jugador tropieza y cae al piso" },
+            ["parkour_remove_floor"] = new[] { Parkour, "remove_floor", "La pieza donde está parado desaparece unos segundos" },
+            ["parkour_super_jump"]  = new[] { Parkour, "super_jump", "Súper salto por unos segundos" },
+            ["parkour_highest"]     = new[] { Parkour, "highest", "Ayuda: vuelve a la pieza más alta que alcanzó" },
+            ["parkour_back_to_start"] = new[] { Parkour, "back_to_start", "Troll: vuelta al inicio de la torre" },
+            ["parkour_set_place"]   = new[] { Parkour, "parkour_place", "Guarda donde está el jugador como inicio del parkour (\"marked\")" },
             ["arena_start"]         = new[] { Arena, "arena", "Pelea de viewers: todos contra todos alrededor del jugador, rondas por kills" },
             ["arena_stop"]          = new[] { Arena, "arena_stop", "Termina la pelea y borra a los luchadores" },
             ["arena_join"]          = new[] { Arena, "arena_join", "El viewer entra con el personaje que elija: poca vida, sin armas ni poderes" },

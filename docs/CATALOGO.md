@@ -233,6 +233,37 @@ cualquier momento y el que muere puede volver. Al acabar el tiempo de la ronda g
 | `arena_power` | Poder temporal | `power` (random, ki, fly, strength, speed, dodge), `seconds` (sugeridos 10, 20, 30, 60 o 5-120) | 🏷️ | 🚧 v0.8.3 |
 | `arena_bots` | Pelea: agregar bots de prueba | `count` (1-10) | | 🚧 v0.8.3 |
 
+### Parkour (v0.8.4)
+
+Torre estilo **Only Up!**: objetos del juego (contenedores, plataformas, cajas…) que suben en zigzag desde el
+suelo hasta la meta (`height` metros). Generada al azar con **semilla** (`seed`; 0 = nueva, y la usada se
+muestra en pantalla para repetirla). **Sin checkpoints ni daño por caída**: si cae, sigue desde donde se
+agarre. Solo existen las piezas cercanas al jugador. HUD: altura, récord, caídas, tiempo. Meta arriba con
+luz y fuegos artificiales. Piezas **pegadas**: cada una se monta 40 cm sobre la anterior y 0,2-0,5 m más alta, sin huecos; ninguna pieza queda encima de otra tapando el camino (3,5 m libres), así siempre se puede seguir subiendo (según cómo quedó girada
+cada una) y hasta 0,5 m más alta; solo piezas de al menos 2,2 × 2,2 m; la primera, pegada a la salida. **Campo libre** como en la Pelea: sin
+policía ni estrellas, sin tráfico ni peatones, y la base de la torre se limpia cada 2 s. Lugar (abierto, sin edificios): `sandy_shores` (por defecto, aeródromo del desierto), `airport`, `marked` ("Marcar parkour aquí") o `here`.
+
+**Mapas de Menyoo (`course`):** además de la torre al azar, el parkour carga cualquier mapa de parkour
+hecho con Menyoo (por ejemplo "Only Up in GTA 5", hasta la cima del Maze Bank). No hace falta Menyoo:
+1. Crear la carpeta `scripts\StreamTok.Parkour` y poner ahí el `.xml` (ej. `OnlyUp.xml`).
+2. Recargar el mod (Insert): el mapa aparece en `course` con su nombre de archivo.
+3. Iniciar con `course = OnlyUp`: salida en el punto del mapa, meta en la pieza más alta, con todo lo del modo
+   (piezas cercanas, campo libre, sin daño por caída, HUD, récord, acciones de viewers). `seed`, `height` y
+   `place` se ignoran. Los vehículos del mapa se crean congelados. Si el mapa usa objetos de un mod de props que no está instalado (el de Only Up usa **Custom Props Add-On** para sus escaleras, puentes, grúa y torres), esos objetos no aparecen y se avisa cuántos faltan: para el recorrido completo hay que instalar ese mod.
+Los mapas son de sus autores: no se incluyen en el repo ni en el release.
+
+| id | Nombre | Parámetros | | Estado |
+|---|---|---|---|---|
+| `parkour_start` | Parkour: iniciar | `seed` (0-99999), `height` (sugeridos 100, 200, 300, 500, 800 o 50-1000), `place`, `course` (random o un mapa de Menyoo) | | 🚧 v0.8.4 |
+| `parkour_stop` | Parkour: terminar (borra la torre) | — | | 🚧 v0.8.4 |
+| `parkour_wind` | Viento (empujón) | `strength` (3-25) | | 🚧 v0.8.4 |
+| `parkour_ragdoll` | Tropezón | — | | 🚧 v0.8.4 |
+| `parkour_remove_floor` | Quitar el piso bajo sus pies | `seconds` (2-30) | | 🚧 v0.8.4 |
+| `parkour_super_jump` | Súper salto | `seconds` (3-60) | | 🚧 v0.8.4 |
+| `parkour_highest` | Volver a lo más alto alcanzado | — | | 🚧 v0.8.4 |
+| `parkour_back_to_start` | Volver al inicio | — | | 🚧 v0.8.4 |
+| `parkour_set_place` | Marcar parkour aquí | — | | 🚧 v0.8.4 |
+
 ### Chaos Mod (pendiente)
 
 Efectos aleatorios cada X segundos (ideas: ChaosModV; revisar su licencia antes de reutilizar código).
