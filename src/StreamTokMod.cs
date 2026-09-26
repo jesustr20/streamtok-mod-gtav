@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using GTA;
 using StreamTok.GtaV.Actions;
+using StreamTok.GtaV.Characters;
 using StreamTok.GtaV.Debug;
 using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
@@ -49,11 +50,12 @@ namespace StreamTok.GtaV
             Log($"Constructor ejecutado: SHVDN instanció StreamTokMod v{ModVersion}.");
 
             PlayerTransform.Log = Log;
-            _registry = ActionRegistry.CreateDefault();
+            _registry = ActionRegistry.CreateDefault(CharacterCatalog.Load(BaseDirectory, Log));
             _services = new ActionServices(
                 new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20)),
                 new PlayerEffects(Log),
                 new FrameScheduler(Log),
+                new CharacterManager(),
                 new Random());
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
 
@@ -114,6 +116,7 @@ namespace StreamTok.GtaV
 
             _services.Scheduler.Update();
             _services.Tracker.Update();
+            _services.Characters.Update();
             _services.Effects.Update();
             _menu?.Draw();
         }
@@ -168,6 +171,7 @@ namespace StreamTok.GtaV
         {
             _client.Dispose();
             _services.Scheduler.Clear();
+            _services.Characters.Clear();
             _services.Effects.EndAll();
             PlayerTransform.RestoreNow(); // no habrá más frames: sin pasos
 
