@@ -29,6 +29,12 @@ namespace StreamTok.GtaV.Entities
         /// <summary>A más distancia que esto no se dibuja el nombre (evita llenar la pantalla).</summary>
         private const float TagDistance = 50f;
 
+        /// <summary>
+        /// Metros sobre la cabeza donde flota el nombre. Deja espacio para que se vea la cara;
+        /// la barra de vida de los personajes va justo debajo del nombre, a esta misma altura.
+        /// </summary>
+        public const float HeadTagHeight = 0.75f;
+
         private readonly List<Tracked> _items = new List<Tracked>();
         private readonly int _maxPeds;
         private readonly int _maxVehicles;
@@ -178,7 +184,7 @@ namespace StreamTok.GtaV.Entities
                 }
 
                 Vector3 anchor = e is Ped ped
-                    ? ped.Bones[Bone.SkelHead].Position + new Vector3(0f, 0f, 0.35f)
+                    ? ped.Bones[Bone.SkelHead].Position + new Vector3(0f, 0f, HeadTagHeight)
                     : e.Position + new Vector3(0f, 0f, t.TagHeight);
 
                 PointF screen = GTA.UI.Screen.WorldToScreen(anchor);

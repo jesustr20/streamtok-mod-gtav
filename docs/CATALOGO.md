@@ -94,19 +94,17 @@ El nombre del viewer va **siempre encima del objeto**:
 | `black_hole` | Agujero negro ⭐⭐⭐ (se abre en el cielo con disco de acreción y terremoto; tormenta; la gente huye aterrada; lo que llega al centro desaparece y el jugador muere) | `seconds`, `strength` | 🚧 v0.6 |
 | `tornado` | Tornado ⭐⭐⭐ (embudo de humo con escombros y tormenta; avanza zigzagueando y levanta lo que atrapa) | `seconds`, `strength` | 🚧 v0.6 |
 
-## 6. Personajes custom (Fases 6-7)
+## 6. Personajes custom
 
-Personaje = **modelo + plantilla de comportamiento**. StreamTok incluye personajes **originales**
-hechos con modelos de GTA; el streamer puede registrar en su PC los add-on peds que instale por su
-cuenta (StreamTok no los distribuye).
+Personaje = **modelo + habilidades combinables**, definidos en `scripts\StreamTok.Characters.json`.
+Guía completa: [`PERSONAJES.md`](PERSONAJES.md).
 
-| Plantilla | Idea | Dificultad |
-|---|---|---|
-| Súper fuerza | Mucha vida, golpes que lanzan lejos | ⭐⭐ |
-| Tanque / jefe | Vida enorme, barra de vida | ⭐⭐ |
-| Lanza energía | Proyectiles con partículas | ⭐⭐⭐ |
-| Volador | Vuelo simulado cada frame | ⭐⭐⭐ |
-| Gigante | Solo con un modelo gigante | depende del modelo |
+| id | Nombre | Parámetros | | Estado |
+|---|---|---|---|---|
+| `spawn_character` | Personaje (enemigo o aliado) | `character` (ids del JSON o random), `side` (enemy, ally), `count` | 🏷️ | 🚧 v0.7 |
+| `character_<id>` | Una acción por cada personaje del JSON, con su nombre (ej. "Goku") | `side`, `count` | 🏷️ | 🚧 v0.7 |
+
+Habilidades: `super_strength`, `tank`, `gunslinger`, `aura` (v0.7) · `energy_blast`, `flight`, `dodge`, `speed` (v0.8).
 
 ## 7. Modos de juego
 

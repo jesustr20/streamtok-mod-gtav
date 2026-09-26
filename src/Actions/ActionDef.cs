@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using StreamTok.GtaV.Characters;
 using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
 
@@ -109,8 +110,9 @@ namespace StreamTok.GtaV.Actions
     /// <summary>Servicios compartidos por todas las acciones.</summary>
     internal sealed class ActionServices
     {
-        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, Random rng)
+        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, Random rng)
         {
+            Characters = characters;
             Tracker = tracker;
             Effects = effects;
             Scheduler = scheduler;
@@ -120,6 +122,7 @@ namespace StreamTok.GtaV.Actions
         public EntityTracker Tracker { get; }
         public PlayerEffects Effects { get; }
         public FrameScheduler Scheduler { get; }
+        public CharacterManager Characters { get; }
         public Random Rng { get; }
     }
 
@@ -142,6 +145,7 @@ namespace StreamTok.GtaV.Actions
         public EntityTracker Tracker => _services.Tracker;
         public PlayerEffects Effects => _services.Effects;
         public FrameScheduler Scheduler => _services.Scheduler;
+        public CharacterManager Characters => _services.Characters;
         public Random Rng => _services.Rng;
 
         public int Int(string name) => (int)_values[name];

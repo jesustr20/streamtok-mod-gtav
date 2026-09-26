@@ -6,6 +6,7 @@ acciones dentro de GTA V: spawns, efectos sobre el jugador, vehículos, clima…
 **El mod no conoce TikTok.** Solo publica su catálogo de acciones y ejecuta comandos ya
 resueltos. Qué evento dispara qué acción ("1 rosa → 3 atacantes") lo configura el streamer
 en StreamTok. Catálogo completo y plan de tandas: [`docs/CATALOGO.md`](docs/CATALOGO.md).
+Personajes custom: [`docs/PERSONAJES.md`](docs/PERSONAJES.md).
 
 ## Estado
 
@@ -16,7 +17,8 @@ en StreamTok. Catálogo completo y plan de tandas: [`docs/CATALOGO.md`](docs/CAT
 | 3. Tanda 2: vehículos, jugador, armas, dinero + regla de nombres (29 acciones) | ✅ v0.3.0 |
 | 4. Tanda 3: ebrio, motorizados, tuning, terremoto, teletransporte (34 acciones; "convertir en animal" pausado) | ✅ v0.4.0 |
 | 5. Tanda 4: atacantes (armas, curar, cerdos), compañero, NPC furioso, rampa, vehículos invisibles, coches rápidos, gravedad (45 acciones) | ✅ v0.5.0 |
-| 6. Tanda 5: lluvia de meteoritos, agujero negro, tornado (48 acciones) | 🚧 v0.6.0 |
+| 6. Tanda 5: lluvia de meteoritos, agujero negro, tornado (48 acciones) | ✅ v0.6.0 |
+| 7. Personajes custom: JSON, add-on peds, habilidades super_strength/tank/gunslinger/aura (49 acciones) | 🚧 v0.7.0 |
 | 5+. Personajes custom, efectos ⭐⭐⭐, modos de juego, empaquetado para "Instalar Mod" | Pendiente |
 
 ## Contrato WebSocket (`ws://localhost:7331`)
