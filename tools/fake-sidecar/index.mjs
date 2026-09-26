@@ -75,7 +75,8 @@ function printCatalog() {
   if (!catalog) return log('Sin catálogo todavía: abre el juego (o pulsa Insert) para que el mod se conecte.');
   const lines = catalog.actions.map((a, i) => {
     const params = a.params.map((p) => p.name).join(', ') || 'sin parámetros';
-    return `  ${String(i + 1).padStart(2)}. ${a.name} [${a.id}] (${params})${a.supportsNameTag ? ' 🏷️' : ''}`;
+    const img = a.image ? `  🖼 ${a.image}` : '';
+    return `  ${String(i + 1).padStart(2)}. [${a.category}] ${a.name} (${a.id}) — ${a.description}  · icon: ${a.icon}${a.supportsNameTag ? ' 🏷️' : ''}${img}\n      params: ${params}`;
   });
   log(lines.join('\n'));
 }

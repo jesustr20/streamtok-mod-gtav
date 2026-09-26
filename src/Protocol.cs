@@ -108,13 +108,24 @@ namespace StreamTok.GtaV
             return true;
         }
 
-        private static Dictionary<string, object> DescribeAction(ActionDef action) => new Dictionary<string, object>
+        private static Dictionary<string, object> DescribeAction(ActionDef action)
         {
-            ["id"] = action.Id,
-            ["name"] = action.Name,
-            ["supportsNameTag"] = action.SupportsNameTag,
-            ["params"] = action.Params.Select(DescribeParam).ToList(),
-        };
+            var d = new Dictionary<string, object>
+            {
+                ["id"] = action.Id,
+                ["name"] = action.Name,
+                ["category"] = action.Category,
+                ["icon"] = action.Icon,
+                ["description"] = action.Description,
+                ["supportsNameTag"] = action.SupportsNameTag,
+                ["params"] = action.Params.Select(DescribeParam).ToList(),
+            };
+            if (action.Image != null)
+            {
+                d["image"] = action.Image;
+            }
+            return d;
+        }
 
         private static Dictionary<string, object> DescribeParam(ParamDef p)
         {

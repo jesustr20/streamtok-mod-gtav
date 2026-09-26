@@ -43,8 +43,32 @@ namespace StreamTok.GtaV.Actions
                         ParamDef.Enum("side", "enemy", "enemy", "ally"),
                         ParamDef.Int("count", 1, 1, 5),
                     },
-                    ctx => Spawn(ctx, characters, id));
+                    ctx => Spawn(ctx, characters, id))
+                {
+                    Category = ActionMeta.Character,
+                    Icon = "character",
+                    Description = Describe(def),
+                    Image = def.Image,
+                };
             }
+        }
+
+        /// <summary>Descripción automática a partir de sus habilidades, ej. "Súper fuerza · Aura · Ki".</summary>
+        private static string Describe(CharacterDef def)
+        {
+            var names = new Dictionary<string, string>
+            {
+                ["super_strength"] = "Súper fuerza",
+                ["tank"] = "Tanque",
+                ["gunslinger"] = "Pistolero",
+                ["aura"] = "Aura",
+                ["energy_blast"] = "Ki y Kamehameha",
+                ["flight"] = "Vuela",
+                ["dodge"] = "Esquiva",
+                ["speed"] = "Súper velocidad",
+            };
+            var parts = def.Abilities.Where(names.ContainsKey).Select(a => names[a]).ToList();
+            return parts.Count > 0 ? string.Join(" · ", parts) : "Personaje especial";
         }
 
         private static void Spawn(ActionContext ctx, IReadOnlyList<CharacterDef> characters, string characterId)

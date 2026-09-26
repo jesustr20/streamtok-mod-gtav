@@ -19,7 +19,8 @@ Personajes custom: [`docs/PERSONAJES.md`](docs/PERSONAJES.md).
 | 5. Tanda 4: atacantes (armas, curar, cerdos), compañero, NPC furioso, rampa, vehículos invisibles, coches rápidos, gravedad (45 acciones) | ✅ v0.5.0 |
 | 6. Tanda 5: lluvia de meteoritos, agujero negro, tornado (48 acciones) | ✅ v0.6.0 |
 | 7. Personajes custom: JSON, add-on peds, habilidades super_strength/tank/gunslinger/aura (49 acciones) | ✅ v0.7.0 |
-| 8. Habilidades avanzadas: ki y Kamehameha, vuelo, esquivar, súper velocidad | 🚧 v0.8.0 |
+| 8. Habilidades avanzadas: ki y Kamehameha, vuelo, esquivar, súper velocidad | ✅ v0.8.0 |
+| 8.1 Catálogo para el panel: category, icon, description e image en cada acción | 🚧 v0.8.1 |
 | 5+. Personajes custom, efectos ⭐⭐⭐, modos de juego, empaquetado para "Instalar Mod" | Pendiente |
 
 ## Contrato WebSocket (`ws://localhost:7331`)
@@ -28,7 +29,7 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 
 | Canal | Dirección | Payload |
 |---|---|---|
-| `mod-hello` | mod → app | `{ mod, version, actions: [{ id, name, supportsNameTag, params: [{ name, type, default, min?, max?, options? }] }] }` |
+| `mod-hello` | mod → app | `{ mod, version, actions: [{ id, name, category, icon, description, image?, supportsNameTag, params: [{ name, type, default, min?, max?, options? }] }] }` |
 | `mod-command` | app → mod | `{ id, action, params, nameTag?, notify? }` |
 | `mod-ack` | mod → app | `{ id, ok, error? }` |
 
