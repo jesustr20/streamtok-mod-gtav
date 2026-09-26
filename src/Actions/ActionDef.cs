@@ -131,8 +131,9 @@ namespace StreamTok.GtaV.Actions
     /// <summary>Servicios compartidos por todas las acciones.</summary>
     internal sealed class ActionServices
     {
-        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, ChiliadMode chiliad, ArenaMode arena, Random rng)
+        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour, Random rng)
         {
+            Parkour = parkour;
             Arena = arena;
             Characters = characters;
             Chiliad = chiliad;
@@ -148,6 +149,7 @@ namespace StreamTok.GtaV.Actions
         public CharacterManager Characters { get; }
         public ChiliadMode Chiliad { get; }
         public ArenaMode Arena { get; }
+        public ParkourMode Parkour { get; }
         public Random Rng { get; }
     }
 
@@ -173,6 +175,7 @@ namespace StreamTok.GtaV.Actions
         public CharacterManager Characters => _services.Characters;
         public ChiliadMode Chiliad => _services.Chiliad;
         public ArenaMode Arena => _services.Arena;
+        public ParkourMode Parkour => _services.Parkour;
         public Random Rng => _services.Rng;
 
         public int Int(string name) => (int)_values[name];
