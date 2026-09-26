@@ -51,12 +51,14 @@ namespace StreamTok.GtaV
 
             PlayerTransform.Log = Log;
             _registry = ActionRegistry.CreateDefault(CharacterCatalog.Load(BaseDirectory, Log));
+            var rng = new Random();
+            var tracker = new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20));
             _services = new ActionServices(
-                new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20)),
+                tracker,
                 new PlayerEffects(Log),
                 new FrameScheduler(Log),
-                new CharacterManager(),
-                new Random());
+                new CharacterManager(tracker, rng),
+                rng);
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
 
             string url = Setting("Connection", "Url", DefaultUrl);

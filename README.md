@@ -18,7 +18,8 @@ Personajes custom: [`docs/PERSONAJES.md`](docs/PERSONAJES.md).
 | 4. Tanda 3: ebrio, motorizados, tuning, terremoto, teletransporte (34 acciones; "convertir en animal" pausado) | ✅ v0.4.0 |
 | 5. Tanda 4: atacantes (armas, curar, cerdos), compañero, NPC furioso, rampa, vehículos invisibles, coches rápidos, gravedad (45 acciones) | ✅ v0.5.0 |
 | 6. Tanda 5: lluvia de meteoritos, agujero negro, tornado (48 acciones) | ✅ v0.6.0 |
-| 7. Personajes custom: JSON, add-on peds, habilidades super_strength/tank/gunslinger/aura (49 acciones) | 🚧 v0.7.0 |
+| 7. Personajes custom: JSON, add-on peds, habilidades super_strength/tank/gunslinger/aura (49 acciones) | ✅ v0.7.0 |
+| 8. Habilidades avanzadas: ki y Kamehameha, vuelo, esquivar, súper velocidad | 🚧 v0.8.0 |
 | 5+. Personajes custom, efectos ⭐⭐⭐, modos de juego, empaquetado para "Instalar Mod" | Pendiente |
 
 ## Contrato WebSocket (`ws://localhost:7331`)

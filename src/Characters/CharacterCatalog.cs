@@ -22,6 +22,11 @@ namespace StreamTok.GtaV.Characters
         public HashSet<string> Abilities = new HashSet<string>();
         public Color AuraColor = Color.Gold;
 
+        /// <summary>Color del ki / Kamehameha. Si no se indica, usa el del aura.</summary>
+        public Color? EnergyColor;
+
+        public Color Energy => EnergyColor ?? AuraColor;
+
         public bool Has(string ability) => Abilities.Contains(ability);
     }
 
@@ -35,10 +40,14 @@ namespace StreamTok.GtaV.Characters
         public const string FileName = "StreamTok.Characters.json";
 
         /// <summary>Habilidades disponibles en esta versión.</summary>
-        public static readonly string[] Supported = { "super_strength", "tank", "gunslinger", "aura" };
+        public static readonly string[] Supported =
+        {
+            "super_strength", "tank", "gunslinger", "aura",   // v0.7
+            "energy_blast", "flight", "dodge", "speed",        // v0.8
+        };
 
         /// <summary>Habilidades planeadas: se aceptan en el JSON pero aún no hacen nada.</summary>
-        public static readonly string[] Planned = { "energy_blast", "flight", "dodge", "speed" };
+        public static readonly string[] Planned = { };
 
         private static readonly Dictionary<string, Color> AuraColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
         {
@@ -51,7 +60,7 @@ namespace StreamTok.GtaV.Characters
         };
 
         private const string DefaultJson = @"{
-  ""_ayuda"": ""Personajes custom de StreamTok. model = nombre interno del modelo (de GTA o de un add-on ped instalado). abilities: super_strength, tank, gunslinger, aura (v0.7) y energy_blast, flight, dodge, speed (v0.8). auraColor: gold, blue, red, green, purple, white o #RRGGBB. weapon: none, pistol, smg, rifle, mg, rpg, bat, knife. Tras editar, pulsa Insert en el juego."",
+  ""_ayuda"": ""Personajes custom de StreamTok. model = nombre interno del modelo (de GTA o de un add-on ped instalado). abilities: super_strength, tank, gunslinger, aura, energy_blast (ki y Kamehameha), flight (volar), dodge (esquivar), speed (súper velocidad). auraColor / energyColor: gold, blue, red, green, purple, white o #RRGGBB. weapon: none, pistol, smg, rifle, mg, rpg, bat, knife. Tras editar, pulsa Insert en el juego."",
   ""characters"": [
     { ""id"": ""bruto"",    ""name"": ""Bruto"",          ""model"": ""u_m_y_babyd"",         ""health"": 2500, ""weapon"": ""none"",   ""abilities"": [""super_strength""] },
     { ""id"": ""jefe"",     ""name"": ""Jefe blindado"",  ""model"": ""u_m_y_juggernaut_01"", ""health"": 5000, ""weapon"": ""mg"",     ""abilities"": [""tank""] },
@@ -157,7 +166,7 @@ namespace StreamTok.GtaV.Characters
                         }
                         else if (Planned.Contains(ability))
                         {
-                            log($"Personajes: '{c.Id}' usa '{ability}', que llega en v0.8; por ahora se ignora.");
+                            log($"Personajes: '{c.Id}' usa '{ability}', que todavía no está disponible; se ignora.");
                         }
                         else
                         {
@@ -167,6 +176,11 @@ namespace StreamTok.GtaV.Characters
                 }
 
                 c.AuraColor = ParseColor(Str(d, "auraColor"), c.AuraColor);
+                string energy = Str(d, "energyColor");
+                if (!string.IsNullOrWhiteSpace(energy))
+                {
+                    c.EnergyColor = ParseColor(energy, c.AuraColor);
+                }
                 result.Add(c);
             }
 
