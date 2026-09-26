@@ -164,6 +164,22 @@ namespace StreamTok.GtaV.Actions
             Function.Call(Hash.APPLY_FORCE_TO_ENTITY, e, 1, push.X, push.Y, push.Z, 0f, 0f, 0f, 0, false, true, true, false, true);
         }
 
+        private static void SetMaxWanted()
+        {
+            Player player = GTA.Game.Player;
+            player.WantedLevel = 5;
+            Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, player.Handle, false);
+        }
+
+        /// <summary>Quita las estrellas al instante (sin que queden parpadeando).</summary>
+        private static void ClearWanted()
+        {
+            Player player = GTA.Game.Player;
+            Function.Call(Hash.CLEAR_PLAYER_WANTED_LEVEL, player.Handle);
+            player.WantedLevel = 0;
+            Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, player.Handle, false);
+        }
+
         public static IEnumerable<ActionDef> All()
         {
             yield return new ActionDef("wanted_level", "Nivel de búsqueda", false,
@@ -181,10 +197,17 @@ namespace StreamTok.GtaV.Actions
                     {
                         case "add": player.WantedLevel = Math.Min(5, current + stars); break;
                         case "remove": player.WantedLevel = Math.Max(0, current - stars); break;
-                        case "max": player.WantedLevel = 5; break;
-                        case "clear": player.WantedLevel = 0; break;
+                        case "max": SetMaxWanted(); break;
+                        case "clear": ClearWanted(); break;
                     }
                 });
+
+            // Atajos de un solo botón (lo mismo que mode = max / clear).
+            yield return new ActionDef("wanted_max", "Búsqueda máxima", false, null,
+                ctx => SetMaxWanted());
+
+            yield return new ActionDef("wanted_clear", "Quitar búsqueda", false, null,
+                ctx => ClearWanted());
 
             yield return new ActionDef("money", "Dinero", false,
                 new[]

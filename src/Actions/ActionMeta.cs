@@ -4,7 +4,7 @@ namespace StreamTok.GtaV.Actions
 {
     /// <summary>
     /// Datos de presentación de cada acción para el panel de StreamTok (se publican en mod-hello):
-    ///  - category: para agruparlas (npc, vehicle, player, weapon, world, spectacle, character).
+    ///  - category: para agruparlas (npc, vehicle, player, weapon, world, spectacle, character, chiliad).
     ///  - icon: clave de imagen; StreamTok trae su propia imagen para cada clave.
     ///  - description: texto corto bajo el nombre.
     /// Los personajes custom los completa CharacterActions (con la imagen del JSON).
@@ -18,6 +18,8 @@ namespace StreamTok.GtaV.Actions
         public const string World = "world";
         public const string Spectacle = "spectacle";
         public const string Character = "character";
+        public const string Chiliad = "chiliad";
+        public const string Arena = "arena";
         public const string Other = "other";
 
         private static readonly Dictionary<string, string[]> Meta = new Dictionary<string, string[]>
@@ -60,6 +62,8 @@ namespace StreamTok.GtaV.Actions
             ["player_random_outfit"] = new[] { Player, "outfit", "Ropa al azar" },
             ["teleport"]            = new[] { Player, "teleport", "Teletransporta al jugador (con su vehículo)" },
             ["wanted_level"]        = new[] { Player, "wanted", "Sube, baja o quita estrellas de búsqueda" },
+            ["wanted_max"]          = new[] { Player, "wanted_max", "5 estrellas de búsqueda al instante" },
+            ["wanted_clear"]        = new[] { Player, "wanted_clear", "Quita todas las estrellas de búsqueda" },
             ["money"]               = new[] { Player, "money", "Suma o fija el dinero" },
 
             ["give_weapon"]         = new[] { Weapon, "weapon", "Da un arma al jugador" },
@@ -76,6 +80,32 @@ namespace StreamTok.GtaV.Actions
             ["meteor_shower"]       = new[] { Spectacle, "meteors", "Lluvia de meteoritos de noche" },
             ["black_hole"]          = new[] { Spectacle, "black_hole", "Un agujero negro se abre en el cielo y lo traga todo" },
             ["tornado"]             = new[] { Spectacle, "tornado", "Un tornado avanza hacia el jugador" },
+
+            ["weapon_random"]       = new[] { Weapon, "weapon_random", "Un arma nueva al azar cada vez; con la rueda completa, suma munición" },
+            ["arena_start"]         = new[] { Arena, "arena", "Pelea de viewers: todos contra todos alrededor del jugador, rondas por kills" },
+            ["arena_stop"]          = new[] { Arena, "arena_stop", "Termina la pelea y borra a los luchadores" },
+            ["arena_join"]          = new[] { Arena, "arena_join", "El viewer entra con el personaje que elija: poca vida, sin armas ni poderes" },
+            ["arena_boost"]         = new[] { Arena, "arena_boost", "Donación: más vida según las monedas (y lo cura)" },
+            ["arena_weapon"]        = new[] { Arena, "arena_weapon", "Un arma para su luchador; las armas se quedan" },
+            ["arena_power"]         = new[] { Arena, "arena_power", "Poder por unos segundos (ki, vuelo, fuerza, velocidad, esquivar); más fuerte cuanta más vida" },
+            ["arena_player"]        = new[] { Arena, "arena_player", "El jugador entra a pelear (ON) o queda libre (OFF); al morir queda fuera" },
+            ["arena_set_place"]     = new[] { Arena, "arena_place", "Guarda donde está el jugador como lugar de la arena (\"marked\")" },
+            ["arena_bots"]          = new[] { Arena, "arena_bots", "Agrega luchadores de prueba (Bot 1, Bot 2…)" },
+            ["chiliad_start"]       = new[] { Chiliad, "chiliad", "Reto Monte Chiliad: llegar a la cima antes de que acabe el tiempo" },
+            ["chiliad_stop"]        = new[] { Chiliad, "chiliad_stop", "Termina el reto Chiliad" },
+            ["chiliad_set_goal"]    = new[] { Chiliad, "goal", "Pone la meta (el círculo) donde está el jugador y la guarda; default = cima" },
+            ["chiliad_set_start"]   = new[] { Chiliad, "start_point", "Pone la salida principal donde está el jugador y la guarda; default = entrada del aeropuerto" },
+            ["chiliad_set_taxi_stop"] = new[] { Chiliad, "taxi_stop", "Pone la parada del taxi (salida del túnel) donde está el jugador y la guarda" },
+            ["chiliad_taxi"]        = new[] { Chiliad, "taxi", "En un taxi, permite viajar al instante hasta la salida del túnel del monte" },
+            ["chiliad_gps"]         = new[] { Chiliad, "gps", "Enciende o apaga el minimapa (encender también cancela un apagón temporal)" },
+            ["chiliad_route"]       = new[] { Chiliad, "route", "Muestra u oculta la ruta trazada hasta la cima" },
+            ["chiliad_timer"]       = new[] { Chiliad, "timer", "Activa o desactiva el tiempo límite (desactivado = sin reloj, el tiempo no cuenta)" },
+            ["chiliad_respawn"]     = new[] { Chiliad, "respawn", "Encendido: al morir sigue donde quedó. Apagado: vuelve a la salida" },
+            ["chiliad_time"]        = new[] { Chiliad, "chiliad_time", "Suma o resta segundos al reloj del reto" },
+            ["chiliad_gps_off"]     = new[] { Chiliad, "gps_off", "Apaga el minimapa y la ruta unos segundos" },
+            ["chiliad_back_to_base"] = new[] { Chiliad, "back_to_base", "Manda al jugador de vuelta a la salida (el reloj sigue)" },
+            ["road_accident"]       = new[] { Vehicle, "accident", "Autos chocados (y en llamas) bloquean el camino más adelante" },
+            ["wrecks_remove"]       = new[] { Vehicle, "remove", "Borra los autos chocados" },
 
             ["spawn_character"]     = new[] { Character, "character", "Un personaje especial al azar o elegido" },
         };

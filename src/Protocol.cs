@@ -138,6 +138,7 @@ namespace StreamTok.GtaV
             if (p.Min.HasValue) d["min"] = p.Min.Value;
             if (p.Max.HasValue) d["max"] = p.Max.Value;
             if (p.Options != null) d["options"] = p.Options;
+            if (p.Presets != null) d["presets"] = p.Presets;
             return d;
         }
 

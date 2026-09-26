@@ -7,6 +7,7 @@ using StreamTok.GtaV.Characters;
 using StreamTok.GtaV.Debug;
 using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
+using StreamTok.GtaV.Modes;
 using Notification = GTA.UI.Notification;
 
 namespace StreamTok.GtaV
@@ -22,6 +23,8 @@ namespace StreamTok.GtaV
     ///   [Limits]
     ///   MaxSpawnedPeds=100
     ///   MaxSpawnedVehicles=20
+    ///   [Arena]
+    ///   HealthTiers=1:20,10:25,100:30,500:40,1000:50   (desde X monedas : vida por moneda)
     ///   [Debug]
     ///   MenuEnabled=true
     ///   TestNameTag=Viewer de prueba
@@ -50,15 +53,22 @@ namespace StreamTok.GtaV
             Log($"Constructor ejecutado: SHVDN instanció StreamTokMod v{ModVersion}.");
 
             PlayerTransform.Log = Log;
-            _registry = ActionRegistry.CreateDefault(CharacterCatalog.Load(BaseDirectory, Log));
+            IReadOnlyList<CharacterDef> characters = CharacterCatalog.Load(BaseDirectory, Log);
             var rng = new Random();
             var tracker = new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20));
+            var scheduler = new FrameScheduler(Log);
+            var characterManager = new CharacterManager(tracker, rng);
+            var arena = new ArenaMode(tracker, characterManager, characters, scheduler, rng, Log, BaseDirectory,
+                Setting("Arena", "HealthTiers", ArenaMode.DefaultHealthTiers));
             _services = new ActionServices(
                 tracker,
                 new PlayerEffects(Log),
-                new FrameScheduler(Log),
-                new CharacterManager(tracker, rng),
+                scheduler,
+                characterManager,
+                new ChiliadMode(tracker, scheduler, rng, Log, BaseDirectory),
+                arena,
                 rng);
+            _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds);
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
 
             string url = Setting("Connection", "Url", DefaultUrl);
@@ -73,7 +83,7 @@ namespace StreamTok.GtaV
 
             if (Setting("Debug", "MenuEnabled", true))
             {
-                _menu = new DebugMenu(_registry.All, RunFromMenu);
+                _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena);
             }
 
             Log($"Catálogo: {_registry.All.Count} acciones. Menú de pruebas: {(_menu != null ? "F7" : "desactivado")}.");
@@ -120,6 +130,8 @@ namespace StreamTok.GtaV
             _services.Tracker.Update();
             _services.Characters.Update();
             _services.Effects.Update();
+            _services.Chiliad.Update();
+            _services.Arena.Update();
             _menu?.Draw();
         }
 
@@ -174,6 +186,8 @@ namespace StreamTok.GtaV
             _client.Dispose();
             _services.Scheduler.Clear();
             _services.Characters.Clear();
+            _services.Chiliad.ClearState(); // blip, radar y jugador descongelado
+            _services.Arena.Clear();
             _services.Effects.EndAll();
             PlayerTransform.RestoreNow(); // no habrá más frames: sin pasos
 

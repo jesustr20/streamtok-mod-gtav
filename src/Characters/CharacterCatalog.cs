@@ -30,6 +30,9 @@ namespace StreamTok.GtaV.Characters
         /// <summary>Imagen para el panel de StreamTok (ruta o URL). Opcional.</summary>
         public string Image;
 
+        /// <summary>Potencia de los poderes (explosiones de ki, empujones). 1 = normal.</summary>
+        public float PowerScale = 1f;
+
         public bool Has(string ability) => Abilities.Contains(ability);
     }
 

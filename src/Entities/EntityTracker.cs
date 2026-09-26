@@ -22,6 +22,7 @@ namespace StreamTok.GtaV.Entities
         public const string KindVehicle = "vehicle";
         public const string KindCompanion = "companion";
         public const string KindRamp = "ramp";
+        public const string KindWreck = "wreck";
 
         /// <summary>Máximo de objetos (rampas) spawneados a la vez.</summary>
         private const int MaxProps = 20;
@@ -121,6 +122,18 @@ namespace StreamTok.GtaV.Entities
         {
             _items.Add(new Tracked { Entity = entity, Tag = nameTag, Kind = kind, TagHeight = tagHeight });
         }
+
+        /// <summary>Cambia el nombre que se dibuja sobre una entidad (ej. "Viewer [Nv 3]").</summary>
+        public void Retag(Entity entity, string nameTag)
+        {
+            foreach (Tracked t in _items)
+            {
+                if (t.Entity == entity) t.Tag = nameTag;
+            }
+        }
+
+        /// <summary>true si la entidad la creó el mod (atacantes, vehículos de viewers…).</summary>
+        public bool IsTracked(Entity entity) => _items.Exists(t => t.Entity == entity);
 
         public void Untrack(Entity entity)
         {
