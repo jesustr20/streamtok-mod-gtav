@@ -104,7 +104,7 @@ Guía completa: [`PERSONAJES.md`](PERSONAJES.md).
 | `spawn_character` | Personaje (enemigo o aliado) | `character` (ids del JSON o random), `side` (enemy, ally), `count` | 🏷️ | 🚧 v0.7 |
 | `character_<id>` | Una acción por cada personaje del JSON, con su nombre (ej. "Goku") | `side`, `count` | 🏷️ | 🚧 v0.7 |
 
-Habilidades: `super_strength`, `tank`, `gunslinger`, `aura` (v0.7) · `energy_blast`, `flight`, `dodge`, `speed` (v0.8).
+Habilidades: `super_strength`, `tank`, `gunslinger`, `aura` (v0.7) · `energy_blast` (ki y Kamehameha), `flight`, `dodge`, `speed` (v0.8).
 
 ## 7. Modos de juego
 

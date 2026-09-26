@@ -30,6 +30,7 @@ Un personaje es **modelo + habilidades**. Se definen en `scripts\StreamTok.Chara
 | `weapon` | `none`, `pistol`, `smg`, `rifle`, `mg`, `sniper`, `rpg`, `bat`, `knife` |
 | `abilities` | Lista combinable (ver abajo) |
 | `auraColor` | `gold`, `blue`, `red`, `green`, `purple`, `white` o `#RRGGBB` |
+| `energyColor` | Color del ki y del Kamehameha (opcional; si falta, usa `auraColor`) |
 
 ## Habilidades
 
@@ -39,10 +40,10 @@ Un personaje es **modelo + habilidades**. Se definen en `scripts\StreamTok.Chara
 | `tank` | Blindaje, no se cae, inmune a explosiones, camina lento, **barra de vida de jefe** | ✅ v0.7 |
 | `gunslinger` | Puntería casi perfecta, dispara rápido, no recarga, avanza agresivo | ✅ v0.7 |
 | `aura` | Brillo de color alrededor del cuerpo | ✅ v0.7 |
-| `energy_blast` | Lanza bolas de energía | ⏳ v0.8 |
-| `flight` | Vuela y ataca desde el aire | ⏳ v0.8 |
-| `dodge` | Esquiva balas | ⏳ v0.8 |
-| `speed` | Súper velocidad | ⏳ v0.8 |
+| `energy_blast` | Ráfagas de ki (bolas que siguen al objetivo) y **Kamehameha**: carga 2 s con una esfera creciendo en las manos y dispara un rayo que explota donde choca | ✅ v0.8 |
+| `flight` | Cada tanto se eleva, vuela en círculos sobre el objetivo lanzando ki y baja a pelear | ✅ v0.8 |
+| `dodge` | Al recibir daño, a veces lo esquiva: aparece de golpe unos metros al costado, dejando una imagen residual (Ultra Instinto) | ✅ v0.8 |
+| `speed` | Súper velocidad hacia el objetivo, con estela de su color | ✅ v0.8 |
 
 ## Acciones
 
