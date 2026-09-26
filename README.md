@@ -25,7 +25,7 @@ Personajes custom: [`docs/PERSONAJES.md`](docs/PERSONAJES.md).
 | 8.3 Modo Pelea de viewers: arena cerrada, vida por donación, armas, poderes temporales, kills y Top 5 (75 acciones + personajes) | ✅ v0.8.3 |
 | 8.4 Modo Parkour: torre por semilla en lugar abierto, piezas pegadas, sin daño por caída, acciones de viewers, cargador de mapas de Menyoo (84 acciones + personajes) | ✅ v0.8.4 |
 | 8.5 Parkour estilo Only Up!: torre propia con objetos del juego base, tramos temáticos, todo conectado | ⏸️ En pausa (el mapa "Only Up in GTA 5" necesita Menyoo, que cierra el juego en 1.0.3889.0) |
-| 9. Producción: logs en %LOCALAPPDATA% con rotación, F7 apagado por defecto, prueba de estrés, README para streamers | Pendiente |
+| 9. Producción: logs en %LOCALAPPDATA% con rotación, F7 apagado por defecto, módulos aislados, cola protegida, prueba de estrés, guía para streamers | 🚧 v0.9.0 |
 | 10. Integración con la app StreamTok (v1.0) | Pendiente |
 
 ## Modos de juego
@@ -83,11 +83,13 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 
 ## Probar sin StreamTok
 
-- **Menú F7 dentro del juego**, por secciones: *Juego normal* (por categoría), *Monte Chiliad*,
+- **Menú F7 dentro del juego** (apagado por defecto: activarlo con `MenuEnabled=true` en el `.ini`), por secciones: *Juego normal* (por categoría), *Monte Chiliad*,
   *Pelea de viewers* y *Parkour*. Usa el mismo camino de ejecución que los comandos reales.
   - Arriba/Abajo elegir · Enter/Derecha entrar o ejecutar · Izquierda/Retroceso volver · F7 cerrar.
   - En los parámetros: Izq/Der cambia el valor (salta entre los sugeridos); **Shift** = de 1 en 1 (personalizado) o x10.
   - Los ajustes elegidos se recuerdan hasta recargar el mod (Insert) o cerrar el juego.
+  - **Prueba de estrés** (última opción del menú): encola 20-300 acciones al azar como si llegaran donaciones
+    seguidas y al final muestra cuántas salieron bien, cuánto tardó y el peor FPS.
 - **Simulador** (`tools/fake-sidecar`): servidor WS que imita a StreamTok.
   ```powershell
   cd tools\fake-sidecar
@@ -107,7 +109,7 @@ MaxSpawnedVehicles=20
 [Arena]
 HealthTiers=1:20,10:25,100:30,500:40,1000:50   ; desde X monedas : vida por moneda
 [Debug]
-MenuEnabled=true
+MenuEnabled=false   ; true = menú de pruebas F7 (apagado por defecto para streamers)
 TestNameTag=Viewer de prueba
 ```
 
@@ -122,6 +124,8 @@ TestNameTag=Viewer de prueba
 | Visual Studio | Community 2026 (18.10) |
 
 ---
+
+Guía corta para streamers (instalar y usar, sin desarrollo): [`docs/STREAMERS.md`](docs/STREAMERS.md).
 
 ## Instalación en el PC de juego
 
@@ -159,7 +163,7 @@ Comprobación: en Modo Historia, **F4** abre la consola de SHVDN.
 ## Si no carga
 
 Logs en la raíz del juego: `asiloader.log`, `ScriptHookV.log`, `ScriptHookVDotNet.log`.
-Log del mod: `scripts\StreamTok.GtaV.log`.
+Log del mod: `%LOCALAPPDATA%\StreamTok\logs\StreamTok.GtaV.log` (rota al pasar 1 MB; guarda 3 anteriores).
 
 | Síntoma | Causa probable |
 |---|---|

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using GTA;
 using StreamTok.GtaV.Actions;
 using StreamTok.GtaV.Characters;
@@ -26,7 +27,7 @@ namespace StreamTok.GtaV
     ///   [Arena]
     ///   HealthTiers=1:20,10:25,100:30,500:40,1000:50   (desde X monedas : vida por moneda)
     ///   [Debug]
-    ///   MenuEnabled=true
+    ///   MenuEnabled=false   (true = menú de pruebas F7)
     ///   TestNameTag=Viewer de prueba
     /// </summary>
     public sealed class StreamTokMod : Script
@@ -36,10 +37,19 @@ namespace StreamTok.GtaV
         /// <summary>Máximo de comandos por frame, para repartir ráfagas y no congelar el juego.</summary>
         private const int MaxCommandsPerTick = 3;
 
+        /// <summary>Máximo de comandos esperando: más que esto se descarta lo más viejo.</summary>
+        private const int MaxQueuedCommands = 300;
+
+        // Prueba de estrés
+        private int _stressPending, _stressOk, _stressFail;
+        private float _stressWorstFrame;
+        private int _stressStarted;
+
         /// <summary>Versión del DLL (la pone el CI desde el tag v*).</summary>
         private static readonly string ModVersion = GetVersion();
 
-        private readonly string _logPath;
+        private readonly Util.FileLog _log;
+        private readonly Dictionary<string, int> _nextModuleError = new Dictionary<string, int>();
         private readonly ActionRegistry _registry;
         private readonly ActionServices _services;
         private readonly StreamTokClient _client;
@@ -49,7 +59,7 @@ namespace StreamTok.GtaV
 
         public StreamTokMod()
         {
-            _logPath = Path.Combine(BaseDirectory, "StreamTok.GtaV.log");
+            _log = new Util.FileLog(BaseDirectory);
             Log($"Constructor ejecutado: SHVDN instanció StreamTokMod v{ModVersion}.");
 
             PlayerTransform.Log = Log;
@@ -83,12 +93,12 @@ namespace StreamTok.GtaV
             _client = new StreamTokClient(uri, Protocol.BuildHello(ModVersion, _registry.All), Log);
             _client.Start();
 
-            if (Setting("Debug", "MenuEnabled", true))
+            if (Setting("Debug", "MenuEnabled", false))
             {
-                _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour);
+                _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour, StartStressTest);
             }
 
-            Log($"Catálogo: {_registry.All.Count} acciones. Menú de pruebas: {(_menu != null ? "F7" : "desactivado")}.");
+            Log($"Catálogo: {_registry.All.Count} acciones. Menú de pruebas: {(_menu != null ? "F7" : "desactivado (activar en StreamTok.GtaV.ini: [Debug] MenuEnabled=true)")}. Log: {_log.FilePath}");
 
             Interval = 0; // cada frame: nombres, efectos y menú se dibujan frame a frame
             Tick += OnTick;
@@ -120,22 +130,32 @@ namespace StreamTok.GtaV
                     : "~p~StreamTok~s~: ~r~desconectado~s~, reintentando...");
             }
 
+            // Protección: si llegan cientos de comandos de golpe, los más viejos se descartan (con aviso a la app).
+            while (_client.Commands.Count > MaxQueuedCommands && _client.Commands.TryDequeue(out ModCommand dropped))
+            {
+                _client.Send(Protocol.BuildAck(dropped.Id, "Descartado: demasiados comandos en cola"));
+                Log($"DROP {dropped.Action} ({dropped.Id}): cola llena");
+            }
+
             ModCommand cmd;
             for (int i = 0; i < MaxCommandsPerTick && _client.Commands.TryDequeue(out cmd); i++)
             {
                 string error = Run(cmd.Action, cmd.Params, cmd.NameTag, cmd.Notify);
                 _client.Send(Protocol.BuildAck(cmd.Id, error));
                 Log(error == null ? $"OK   {cmd.Action} ({cmd.Id})" : $"FAIL {cmd.Action} ({cmd.Id}): {error}");
+                if (cmd.Id != null && cmd.Id.StartsWith("stress-")) CountStress(error == null);
             }
+            if (_stressPending > 0) _stressWorstFrame = Math.Max(_stressWorstFrame, GTA.Game.LastFrameTime);
 
-            _services.Scheduler.Update();
-            _services.Tracker.Update();
-            _services.Characters.Update();
-            _services.Effects.Update();
-            _services.Chiliad.Update();
-            _services.Arena.Update();
-            _services.Parkour.Update();
-            _menu?.Draw();
+            // Cada módulo por separado: si uno falla, los demás siguen (y el error se anota sin inundar el log).
+            Safe("Tareas", _services.Scheduler.Update);
+            Safe("Nombres", _services.Tracker.Update);
+            Safe("Personajes", _services.Characters.Update);
+            Safe("Efectos", _services.Effects.Update);
+            Safe("Chiliad", _services.Chiliad.Update);
+            Safe("Pelea", _services.Arena.Update);
+            Safe("Parkour", _services.Parkour.Update);
+            if (_menu != null) Safe("Menú", _menu.Draw);
         }
 
         /// <summary>
@@ -219,11 +239,71 @@ namespace StreamTok.GtaV
             }
         }
 
+        /// <summary>
+        /// Prueba de estrés (menú F7): encola N acciones al azar del juego normal, como si llegaran
+        /// donaciones seguidas, y al final informa cuántas salieron bien y el peor frame.
+        /// </summary>
+        private void StartStressTest(int count)
+        {
+            string[] skip = { "player_kill", "black_hole", "teleport", "player_skydive", "money", "remove_weapons" };
+            List<ActionDef> pool = _registry.All.Where(x =>
+                x.Category != ActionMeta.Chiliad && x.Category != ActionMeta.Arena && x.Category != ActionMeta.Parkour
+                && !skip.Contains(x.Id) && !x.Id.EndsWith("_remove")).ToList();
+            var rng = _services.Rng;
+
+            _stressPending = count;
+            _stressOk = _stressFail = 0;
+            _stressWorstFrame = 0f;
+            _stressStarted = GTA.Game.GameTime;
+            for (int i = 0; i < count; i++)
+            {
+                ActionDef a = pool[rng.Next(pool.Count)];
+                var values = new Dictionary<string, object>();
+                foreach (ParamDef param in a.Params)
+                {
+                    values[param.Name] = param.Type == "enum" ? param.Options[rng.Next(param.Options.Length)] : param.Default;
+                }
+                _client.Commands.Enqueue(new ModCommand { Id = $"stress-{i + 1}", Action = a.Id, Params = values, NameTag = $"Estrés {i + 1}" });
+            }
+            Notification.Show($"~p~Prueba de estrés~s~: {count} acciones en cola");
+            Log($"Prueba de estrés: {count} acciones en cola.");
+        }
+
+        private void CountStress(bool ok)
+        {
+            if (ok) _stressOk++; else _stressFail++;
+            if (--_stressPending > 0) return;
+
+            int secs = (GTA.Game.GameTime - _stressStarted) / 1000;
+            int worstFps = _stressWorstFrame > 0f ? (int)(1f / _stressWorstFrame) : 0;
+            string result = $"{_stressOk} OK · {_stressFail} con error · {secs} s · peor momento {worstFps} FPS";
+            Notification.Show($"~p~Prueba de estrés~s~ terminada: {result}");
+            Log($"Prueba de estrés terminada: {result}.");
+        }
+
+        /// <summary>Ejecuta un módulo del Tick; si lanza, lo anota como mucho una vez cada 10 s.</summary>
+        private void Safe(string module, Action update)
+        {
+            try
+            {
+                update();
+            }
+            catch (Exception ex)
+            {
+                int now = GTA.Game.GameTime;
+                if (!_nextModuleError.TryGetValue(module, out int next) || now >= next)
+                {
+                    _nextModuleError[module] = now + 10000;
+                    Log($"Error en {module}: {ex}");
+                }
+            }
+        }
+
         private void Log(string message)
         {
             try
             {
-                File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+                _log.Write(message);
             }
             catch
             {
