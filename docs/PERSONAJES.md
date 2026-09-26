@@ -65,7 +65,7 @@ con el nombre visible del personaje), para enlazarla directo a una donación. Ad
 2. Busca su **nombre interno**: en el README, en el nombre de sus archivos
    (`nombre.yft` / `nombre.ydd`) o en `<Name>` dentro de `peds.meta`.
 3. Agrégalo al JSON con ese nombre en `model` y pulsa **Insert**.
-4. Si no aparece en el menú F7, revisa `scripts\StreamTok.GtaV.log`: dice si el modelo no se
+4. Si no aparece en el menú F7, revisa `%LOCALAPPDATA%\StreamTok\logs\StreamTok.GtaV.log`: dice si el modelo no se
    encontró, si el JSON tiene un error o si alguna habilidad no existe.
 
 Los modelos de terceros los instala cada streamer en su PC; StreamTok no los incluye ni distribuye.

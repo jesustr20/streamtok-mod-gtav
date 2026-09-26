@@ -63,7 +63,7 @@ namespace StreamTok.GtaV.Debug
         private bool _open;
         private int _paramIndex = -1; // -1 = navegando una lista
 
-        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour)
+        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour, Action<int> stressTest = null)
         {
             _run = run;
 
@@ -72,7 +72,16 @@ namespace StreamTok.GtaV.Debug
                 _values[a.Id] = a.Params.ToDictionary(p => p.Name, p => p.Default);
             }
 
-            _path.Push(new Level { Menu = BuildRoot(actions, chiliad, arena, parkour) });
+            Item root = BuildRoot(actions, chiliad, arena, parkour);
+            if (stressTest != null)
+            {
+                // Prueba de estrés: muchas acciones al azar seguidas, para ver si el juego aguanta.
+                var stress = new ActionDef("debug_stress", "Prueba de estrés", false,
+                    new[] { ParamDef.Int("count", 50, 10, 300, 20, 50, 100, 200, 300) }, null);
+                _values[stress.Id] = stress.Params.ToDictionary(x => x.Name, x => x.Default);
+                root.Children.Add(new Item { Action = stress, Custom = v => stressTest((int)v["count"]) });
+            }
+            _path.Push(new Level { Menu = root });
 
             _text = new GTA.UI.TextElement("", PointF.Empty, 0.32f, Normal, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Left, true, false);
             _background = new GTA.UI.ContainerElement(new PointF(X, Y), new SizeF(Width, 0f), Color.FromArgb(190, 0, 0, 0));
@@ -261,6 +270,11 @@ namespace StreamTok.GtaV.Debug
         {
             ActionDef action = item.IsToggle && item.IsOn() ? item.OffAction : item.Action;
             var values = new Dictionary<string, object>(_values[action.Id]);
+            if (item.Custom != null)
+            {
+                item.Custom(values);
+                return;
+            }
             if (item.IsSwitch)
             {
                 values["enabled"] = !item.IsOn(); // ON -> OFF y viceversa
@@ -450,6 +464,9 @@ namespace StreamTok.GtaV.Debug
 
             /// <summary>Interruptor ON/OFF de una opción (acción con parámetro "enabled").</summary>
             public bool IsSwitch;
+
+            /// <summary>Ítem propio del menú (no es una acción del catálogo), ej. la prueba de estrés.</summary>
+            public Action<Dictionary<string, object>> Custom;
 
             public bool IsMenu => Action == null;
             public bool IsToggle => Action != null && OffAction != null;
