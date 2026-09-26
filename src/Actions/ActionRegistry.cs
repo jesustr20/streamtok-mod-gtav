@@ -17,6 +17,10 @@ namespace StreamTok.GtaV.Actions
         private ActionRegistry(IEnumerable<ActionDef> actions)
         {
             All = actions.ToList();
+            foreach (ActionDef a in All)
+            {
+                ActionMeta.Apply(a);
+            }
             _byId = All.ToDictionary(a => a.Id, StringComparer.OrdinalIgnoreCase);
         }
 

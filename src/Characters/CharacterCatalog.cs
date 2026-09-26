@@ -27,6 +27,9 @@ namespace StreamTok.GtaV.Characters
 
         public Color Energy => EnergyColor ?? AuraColor;
 
+        /// <summary>Imagen para el panel de StreamTok (ruta o URL). Opcional.</summary>
+        public string Image;
+
         public bool Has(string ability) => Abilities.Contains(ability);
     }
 
@@ -60,7 +63,7 @@ namespace StreamTok.GtaV.Characters
         };
 
         private const string DefaultJson = @"{
-  ""_ayuda"": ""Personajes custom de StreamTok. model = nombre interno del modelo (de GTA o de un add-on ped instalado). abilities: super_strength, tank, gunslinger, aura, energy_blast (ki y Kamehameha), flight (volar), dodge (esquivar), speed (súper velocidad). auraColor / energyColor: gold, blue, red, green, purple, white o #RRGGBB. weapon: none, pistol, smg, rifle, mg, rpg, bat, knife. Tras editar, pulsa Insert en el juego."",
+  ""_ayuda"": ""Personajes custom de StreamTok. model = nombre interno del modelo (de GTA o de un add-on ped instalado). abilities: super_strength, tank, gunslinger, aura, energy_blast (ki y Kamehameha), flight (volar), dodge (esquivar), speed (súper velocidad). auraColor / energyColor: gold, blue, red, green, purple, white o #RRGGBB. image: foto para el panel de StreamTok (ruta o URL, opcional). weapon: none, pistol, smg, rifle, mg, rpg, bat, knife. Tras editar, pulsa Insert en el juego."",
   ""characters"": [
     { ""id"": ""bruto"",    ""name"": ""Bruto"",          ""model"": ""u_m_y_babyd"",         ""health"": 2500, ""weapon"": ""none"",   ""abilities"": [""super_strength""] },
     { ""id"": ""jefe"",     ""name"": ""Jefe blindado"",  ""model"": ""u_m_y_juggernaut_01"", ""health"": 5000, ""weapon"": ""mg"",     ""abilities"": [""tank""] },
@@ -175,6 +178,7 @@ namespace StreamTok.GtaV.Characters
                     }
                 }
 
+                c.Image = Str(d, "image");
                 c.AuraColor = ParseColor(Str(d, "auraColor"), c.AuraColor);
                 string energy = Str(d, "energyColor");
                 if (!string.IsNullOrWhiteSpace(energy))

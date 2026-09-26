@@ -31,6 +31,7 @@ Un personaje es **modelo + habilidades**. Se definen en `scripts\StreamTok.Chara
 | `abilities` | Lista combinable (ver abajo) |
 | `auraColor` | `gold`, `blue`, `red`, `green`, `purple`, `white` o `#RRGGBB` |
 | `energyColor` | Color del ki y del Kamehameha (opcional; si falta, usa `auraColor`) |
+| `image` | Foto para el panel de StreamTok: ruta o URL (opcional) |
 
 ## Habilidades
 

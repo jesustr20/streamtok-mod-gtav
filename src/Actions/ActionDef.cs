@@ -105,6 +105,20 @@ namespace StreamTok.GtaV.Actions
 
         public ParamDef[] Params { get; }
         public Action<ActionContext> Execute { get; }
+
+        // --- Presentación para el panel de StreamTok (ver ActionMeta) ---
+
+        /// <summary>Grupo: npc, vehicle, player, weapon, world, spectacle, character.</summary>
+        public string Category { get; set; }
+
+        /// <summary>Clave de imagen; StreamTok trae la imagen correspondiente.</summary>
+        public string Icon { get; set; }
+
+        /// <summary>Texto corto bajo el nombre.</summary>
+        public string Description { get; set; }
+
+        /// <summary>Imagen propia (solo personajes custom): ruta o URL puesta en el JSON.</summary>
+        public string Image { get; set; }
     }
 
     /// <summary>Servicios compartidos por todas las acciones.</summary>
