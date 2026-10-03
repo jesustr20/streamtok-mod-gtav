@@ -75,7 +75,12 @@ namespace StreamTok.GtaV.Characters
   ]
 }";
 
-        public static List<CharacterDef> Load(string directory, Action<string> log)
+        /// <summary>
+        /// validateModels=false se usa SOLO desde el exportador de catálogo (tools/catalog-export),
+        /// que corre sin GTA V abierto: ahí no se puede llamar a model.IsInCdImage (es un native).
+        /// El mod real siempre llama con el valor por defecto (true).
+        /// </summary>
+        public static List<CharacterDef> Load(string directory, Action<string> log, bool validateModels = true)
         {
             string path = Path.Combine(directory, FileName);
             string json;
@@ -109,11 +114,14 @@ namespace StreamTok.GtaV.Characters
             var valid = new List<CharacterDef>();
             foreach (CharacterDef c in parsed)
             {
-                var model = new Model(c.Model);
-                if (!model.IsInCdImage || !model.IsPed)
+                if (validateModels)
                 {
-                    log($"Personajes: '{c.Id}' omitido: el modelo '{c.Model}' no está instalado o no es un personaje.");
-                    continue;
+                    var model = new Model(c.Model);
+                    if (!model.IsInCdImage || !model.IsPed)
+                    {
+                        log($"Personajes: '{c.Id}' omitido: el modelo '{c.Model}' no está instalado o no es un personaje.");
+                        continue;
+                    }
                 }
                 if (valid.Any(v => v.Id == c.Id))
                 {

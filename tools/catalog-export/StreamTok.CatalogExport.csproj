@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    StreamTok · Exportador de catálogo
+    Compila EL MISMO CÓDIGO de src/ (ActionDef, ActionRegistry, Protocol.BuildHello, etc.) como
+    un .exe de consola aparte, para volcar catalog.json sin abrir GTA V.
+
+    No es una copia a mano: arma el ActionRegistry real y llama a Protocol.BuildHello, la misma
+    función que el mod usa para el mensaje "mod-hello" por WebSocket. Si mañana se agrega o
+    cambia una acción en src/Actions/, aparece sola acá — nunca se desincroniza.
+
+    Se excluyen StreamTokMod.cs (el Script de SHVDN; nunca se instancia fuera del juego) y
+    src/Debug/** (el menú F7, que no hace falta para exportar el catálogo).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>StreamTok.CatalogExport</AssemblyName>
+    <RootNamespace>StreamTok.CatalogExport</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mismas referencias que el mod: el código de src/ las necesita para compilar -->
+    <PackageReference Include="ScriptHookVDotNet3" Version="3.6.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Web.Extensions" />   <!-- JavaScriptSerializer: Protocol.BuildHello -->
+    <Reference Include="System.Windows.Forms" />    <!-- Keys: algunas acciones lo referencian -->
+    <Reference Include="System.Drawing" />          <!-- PointF, Color: EntityTracker, etc. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Todo el código del mod, MENOS el entry point de SHVDN y el menú F7 (no hacen falta aquí) -->
+    <Compile Include="../../src/**/*.cs" Exclude="../../src/StreamTokMod.cs;../../src/Debug/**/*.cs" />
+  </ItemGroup>
+
+</Project>

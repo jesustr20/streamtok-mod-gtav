@@ -64,14 +64,18 @@ namespace StreamTok.GtaV.Actions
             ["xmas"] = "XMAS",
         };
 
-        /// <summary>Modelos por tipo de vehículo, y la altura del nombre sobre cada tipo.</summary>
-        public static readonly Dictionary<string, string[]> Vehicles = new Dictionary<string, string[]>
+        /// <summary>
+        /// Modelos por tipo de vehículo. NO es una lista escrita a mano: se arma una sola vez
+        /// recorriendo TODO el enum GTA.VehicleHash (todos los vehículos que el juego/SHVDN
+        /// conoce, incluyendo los de los DLC) y clasificando cada uno con Model.IsCar / IsBike /
+        /// IsBoat / IsPlane / IsHelicopter — son datos del propio juego, no inventados aquí.
+        /// Así crece sola con cada actualización de GTA V o de SHVDN, sin tocar este archivo.
+        /// </summary>
+        public static Dictionary<string, string[]> Vehicles
         {
-            ["car"] = new[] { "adder", "zentorno", "sultan", "elegy2", "banshee", "dominator", "kuruma", "blista" },
-            ["bike"] = new[] { "bati", "akuma", "sanchez", "faggio", "hakuchou" },
-            ["boat"] = new[] { "jetmax", "seashark", "speeder", "dinghy" },
-            ["plane"] = new[] { "cuban800", "duster", "stunt", "velum", "luxor" },
-        };
+            get { return _vehicles ?? (_vehicles = BuildVehicleCatalog()); }
+        }
+        private static Dictionary<string, string[]> _vehicles;
 
         public static readonly Dictionary<string, float> VehicleTagHeight = new Dictionary<string, float>
         {
@@ -79,7 +83,65 @@ namespace StreamTok.GtaV.Actions
             ["bike"] = 1.6f,
             ["boat"] = 2.2f,
             ["plane"] = 3.5f,
+            ["helicopter"] = 3.8f,
         };
+
+        /// <summary>
+        /// Recorre GTA.VehicleHash una sola vez (se llama la primera vez que algo pide
+        /// GameData.Vehicles, ya con el juego corriendo) y agrupa cada modelo válido según lo
+        /// que el propio juego dice que es. Se guarda en texto en minúscula porque
+        /// Spawner.SpawnVehicle recibe el nombre, no el hash.
+        /// </summary>
+        private static Dictionary<string, string[]> BuildVehicleCatalog()
+        {
+            var byType = new Dictionary<string, List<string>>
+            {
+                ["car"] = new List<string>(),
+                ["bike"] = new List<string>(),
+                ["boat"] = new List<string>(),
+                ["plane"] = new List<string>(),
+                ["helicopter"] = new List<string>(),
+            };
+
+            foreach (VehicleHash hash in System.Enum.GetValues(typeof(VehicleHash)))
+            {
+                Model model = hash;
+                if (!model.IsValid)
+                {
+                    continue; // está en el enum de SHVDN pero esta versión del juego no lo tiene
+                }
+
+                string type;
+                if (model.IsBike) type = "bike";
+                else if (model.IsBoat) type = "boat";
+                else if (model.IsHelicopter) type = "helicopter";
+                else if (model.IsPlane) type = "plane";
+                else if (model.IsCar) type = "car";
+                else continue; // tren, remolque, etc.: no sirven para "generar vehículo"
+
+                byType[type].Add(hash.ToString().ToLowerInvariant());
+            }
+
+            var result = new Dictionary<string, string[]>();
+            foreach (KeyValuePair<string, List<string>> entry in byType)
+            {
+                // Si por algo quedara vacío (versión rara de SHVDN), al menos un modelo seguro.
+                result[entry.Key] = entry.Value.Count > 0 ? entry.Value.ToArray() : new[] { FallbackVehicle(entry.Key) };
+            }
+            return result;
+        }
+
+        private static string FallbackVehicle(string type)
+        {
+            switch (type)
+            {
+                case "bike": return "bati";
+                case "boat": return "dinghy";
+                case "plane": return "duster";
+                case "helicopter": return "maverick";
+                default: return "blista";
+            }
+        }
 
         /// <summary>Animales en los que se puede convertir el jugador.</summary>
         public static readonly Dictionary<string, string> TransformAnimals = new Dictionary<string, string>

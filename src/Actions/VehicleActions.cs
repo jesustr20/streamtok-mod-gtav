@@ -14,7 +14,7 @@ namespace StreamTok.GtaV.Actions
             // Afecta al jugador: lo sube a un vehículo nuevo. Si ya va en uno, lo REEMPLAZA entero
             // (mismo lugar, rumbo y velocidad) y el nombre pasa a ser el del último viewer.
             yield return new ActionDef("player_vehicle", "Generar vehículo", true,
-                new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "random") },
+                new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "helicopter", "random") },
                 ctx =>
                 {
                     PlayerTransform.RequireHuman(); // un animal no puede conducir
@@ -24,7 +24,7 @@ namespace StreamTok.GtaV.Actions
             // No afecta al jugador: aparece al lado, con su propio nombre fijo.
             // Cada viewer que lo mande genera otro vehículo con su nombre; nunca reemplaza.
             yield return new ActionDef("spawn_vehicle", "Generar carro al lado", true,
-                new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "random") },
+                new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "helicopter", "random") },
                 ctx => SpawnVehicle(ctx, drive: false));
 
             yield return new ActionDef("spawn_ramp", "Generar rampa", true,
@@ -143,7 +143,7 @@ namespace StreamTok.GtaV.Actions
             }
             else
             {
-                float distance = type == "plane" ? 14f : 6f;
+                float distance = (type == "plane" || type == "helicopter") ? 14f : 6f;
                 Vector3 position = player.Position + player.ForwardVector * distance;
                 vehicle = Spawner.SpawnVehicle(model, position, player.Heading, placeOnGround: true);
                 if (drive)
