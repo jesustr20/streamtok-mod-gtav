@@ -82,12 +82,17 @@ namespace StreamTok.GtaV.Modes
         private Color _bigColor;
         private int _bigUntil;
 
-        private readonly GTA.UI.ContainerElement _panel = new GTA.UI.ContainerElement(
-            new PointF(1000f, 190f), new SizeF(265f, 110f), Color.FromArgb(170, 0, 0, 0));
-        private readonly GTA.UI.TextElement _text = new GTA.UI.TextElement(
-            "", PointF.Empty, 0.32f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true);
-        private readonly GTA.UI.TextElement _big = new GTA.UI.TextElement(
-            "", new PointF(640f, 220f), 1.2f, Color.Gold, GTA.UI.Font.Pricedown, GTA.UI.Alignment.Center, true, true);
+        // Creados recién al primer uso: así tools/catalog-export puede instanciar ParkourMode sin
+        // GTA V abierto para leer Courses — estos elementos de UI sí necesitan el juego.
+        private GTA.UI.ContainerElement __panel;
+        private GTA.UI.ContainerElement _panel => __panel ?? (__panel = new GTA.UI.ContainerElement(
+            new PointF(1000f, 190f), new SizeF(265f, 110f), Color.FromArgb(170, 0, 0, 0)));
+        private GTA.UI.TextElement __text;
+        private GTA.UI.TextElement _text => __text ?? (__text = new GTA.UI.TextElement(
+            "", PointF.Empty, 0.32f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true));
+        private GTA.UI.TextElement __big;
+        private GTA.UI.TextElement _big => __big ?? (__big = new GTA.UI.TextElement(
+            "", new PointF(640f, 220f), 1.2f, Color.Gold, GTA.UI.Font.Pricedown, GTA.UI.Alignment.Center, true, true));
 
         public ParkourMode(Entities.EntityTracker tracker, Action<string> log, string baseDirectory)
         {

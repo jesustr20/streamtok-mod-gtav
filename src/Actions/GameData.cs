@@ -112,12 +112,12 @@ namespace StreamTok.GtaV.Actions
                 }
 
                 string type;
-                if (model.IsBike) type = "bike";
-                else if (model.IsBoat) type = "boat";
+                if (model.IsBike || model.IsBicycle) type = "bike"; // motos y bicis: dos ruedas
+                else if (model.IsBoat || model.IsJetSki) type = "boat";
                 else if (model.IsHelicopter) type = "helicopter";
                 else if (model.IsPlane) type = "plane";
-                else if (model.IsCar) type = "car";
-                else continue; // tren, remolque, etc.: no sirven para "generar vehículo"
+                else if (model.IsCar || model.IsQuadBike || model.IsAmphibiousCar || model.IsAmphibiousQuadBike) type = "car";
+                else continue; // tren, remolque, submarino, blimp: no sirven para "generar vehículo"
 
                 byType[type].Add(hash.ToString().ToLowerInvariant());
             }

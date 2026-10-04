@@ -17,6 +17,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--
+      Sin esto, el glob por defecto del SDK ("**/*.cs") también se mete a tools\catalog-export\,
+      incluida su carpeta obj\ — ahí duplica los atributos de ensamblado (CS0579) porque ese
+      proyecto genera los suyos propios. tools\ tiene su propio .csproj: no debe compilarse acá.
+    -->
+    <Compile Remove="tools/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Solo para compilar contra la API; en runtime la provee el juego -->
     <PackageReference Include="ScriptHookVDotNet3" Version="3.6.0" ExcludeAssets="runtime" />
     <!-- Permite compilar net48 con `dotnet build` sin el targeting pack instalado (útil en CI) -->

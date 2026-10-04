@@ -126,14 +126,20 @@ namespace StreamTok.GtaV.Modes
 
         // --- HUD (1280x720): tabla a la derecha, debajo del panel del Chiliad
         private const float BoardX = 1000f, BoardY = 350f, BoardW = 265f, RowH = 20f;
-        private readonly GTA.UI.ContainerElement _boardBack = new GTA.UI.ContainerElement(
-            new PointF(BoardX, BoardY), new SizeF(BoardW, 0f), Color.FromArgb(170, 0, 0, 0));
-        private readonly GTA.UI.ContainerElement _winnersBack = new GTA.UI.ContainerElement(
-            PointF.Empty, SizeF.Empty, Color.FromArgb(190, 40, 30, 0));
-        private readonly GTA.UI.TextElement _boardText = new GTA.UI.TextElement(
-            "", PointF.Empty, 0.3f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Left, true, true);
-        private readonly GTA.UI.TextElement _big = new GTA.UI.TextElement(
-            "", new PointF(640f, 200f), 1.2f, Color.Gold, GTA.UI.Font.Pricedown, GTA.UI.Alignment.Center, true, true);
+        // Creados recién al primer uso: así tools/catalog-export puede instanciar ArenaMode sin
+        // GTA V abierto para leer CharacterIds — estos elementos de UI sí necesitan el juego.
+        private GTA.UI.ContainerElement __boardBack;
+        private GTA.UI.ContainerElement _boardBack => __boardBack ?? (__boardBack = new GTA.UI.ContainerElement(
+            new PointF(BoardX, BoardY), new SizeF(BoardW, 0f), Color.FromArgb(170, 0, 0, 0)));
+        private GTA.UI.ContainerElement __winnersBack;
+        private GTA.UI.ContainerElement _winnersBack => __winnersBack ?? (__winnersBack = new GTA.UI.ContainerElement(
+            PointF.Empty, SizeF.Empty, Color.FromArgb(190, 40, 30, 0)));
+        private GTA.UI.TextElement __boardText;
+        private GTA.UI.TextElement _boardText => __boardText ?? (__boardText = new GTA.UI.TextElement(
+            "", PointF.Empty, 0.3f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Left, true, true));
+        private GTA.UI.TextElement __big;
+        private GTA.UI.TextElement _big => __big ?? (__big = new GTA.UI.TextElement(
+            "", new PointF(640f, 200f), 1.2f, Color.Gold, GTA.UI.Font.Pricedown, GTA.UI.Alignment.Center, true, true));
 
         public ArenaMode(EntityTracker tracker, CharacterManager characters, IReadOnlyList<CharacterDef> customCharacters,
             FrameScheduler scheduler, Random rng, Action<string> log, string baseDirectory, string healthTiers)

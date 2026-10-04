@@ -49,14 +49,23 @@ namespace StreamTok.GtaV.Characters
         private readonly List<Projectile> _projectiles = new List<Projectile>();
         private readonly List<Afterimage> _afterimages = new List<Afterimage>();
 
-        private readonly GTA.UI.TextElement _barText = new GTA.UI.TextElement(
-            "", PointF.Empty, 0.38f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true);
-        private readonly GTA.UI.ContainerElement _barBack = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(170, 0, 0, 0));
-        private readonly GTA.UI.ContainerElement _barFill = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(230, 200, 30, 30));
-        private readonly GTA.UI.ContainerElement _headBack = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(170, 0, 0, 0));
-        private readonly GTA.UI.ContainerElement _headFill = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.Green);
-        private readonly GTA.UI.TextElement _headPercent = new GTA.UI.TextElement(
-            "", PointF.Empty, 0.27f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Left, true, true);
+        // Creados recién al primer uso (no al construir la clase): así el exportador de catálogo
+        // (tools/catalog-export) puede instanciar CharacterManager sin GTA V abierto — estos
+        // elementos de UI sí necesitan el juego corriendo.
+        private GTA.UI.TextElement __barText;
+        private GTA.UI.TextElement _barText => __barText ?? (__barText = new GTA.UI.TextElement(
+            "", PointF.Empty, 0.38f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true));
+        private GTA.UI.ContainerElement __barBack;
+        private GTA.UI.ContainerElement _barBack => __barBack ?? (__barBack = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(170, 0, 0, 0)));
+        private GTA.UI.ContainerElement __barFill;
+        private GTA.UI.ContainerElement _barFill => __barFill ?? (__barFill = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(230, 200, 30, 30)));
+        private GTA.UI.ContainerElement __headBack;
+        private GTA.UI.ContainerElement _headBack => __headBack ?? (__headBack = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(170, 0, 0, 0)));
+        private GTA.UI.ContainerElement __headFill;
+        private GTA.UI.ContainerElement _headFill => __headFill ?? (__headFill = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.Green));
+        private GTA.UI.TextElement __headPercent;
+        private GTA.UI.TextElement _headPercent => __headPercent ?? (__headPercent = new GTA.UI.TextElement(
+            "", PointF.Empty, 0.27f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Left, true, true));
 
         public CharacterManager(EntityTracker tracker, Random rng)
         {
