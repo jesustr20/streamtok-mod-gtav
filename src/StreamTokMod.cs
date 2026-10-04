@@ -21,13 +21,12 @@ namespace StreamTok.GtaV
     /// Configuración opcional en scripts\StreamTok.GtaV.ini:
     ///   [Connection]
     ///   Url=ws://localhost:7331
-    ///   [Limits]
-    ///   MaxSpawnedPeds=100
-    ///   MaxSpawnedVehicles=20
     ///   [Arena]
     ///   HealthTiers=1:20,10:25,100:30,500:40,1000:50   (desde X monedas : vida por moneda)
+    ///   [Menu]
+    ///   ShowParkour=false   (true = muestra el modo Parkour en el menú F7; aún sin terminar)
     ///   [Debug]
-    ///   MenuEnabled=false   (true = menú de pruebas F7)
+    ///   MenuEnabled=false   (true = agrega al menú F7 la lista de acciones y la prueba de estrés)
     ///   TestNameTag=Viewer de prueba
     /// </summary>
     public sealed class StreamTokMod : Script
@@ -93,12 +92,14 @@ namespace StreamTok.GtaV
             _client = new StreamTokClient(uri, Protocol.BuildHello(ModVersion, _registry.All), Log);
             _client.Start();
 
-            if (Setting("Debug", "MenuEnabled", false))
-            {
-                _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour, StartStressTest);
-            }
+            // El menú F7 SIEMPRE existe (el streamer enciende Chiliad / Pelea desde ahí).
+            // MenuEnabled=true agrega además la lista de acciones sueltas y la prueba de estrés;
+            // ShowParkour=true agrega la sección Parkour (modo aún sin terminar).
+            bool showTests = Setting("Debug", "MenuEnabled", false);
+            bool showParkour = Setting("Menu", "ShowParkour", false);
+            _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour, showTests, showParkour, StartStressTest);
 
-            Log($"Catálogo: {_registry.All.Count} acciones. Menú de pruebas: {(_menu != null ? "F7" : "desactivado (activar en StreamTok.GtaV.ini: [Debug] MenuEnabled=true)")}. Log: {_log.FilePath}");
+            Log($"Catálogo: {_registry.All.Count} acciones. Menú F7 activo (pruebas: {(showTests ? "sí" : "no; [Debug] MenuEnabled=true")}, Parkour: {(showParkour ? "sí" : "no; [Menu] ShowParkour=true")}). Log: {_log.FilePath}");
 
             Interval = 0; // cada frame: nombres, efectos y menú se dibujan frame a frame
             Tick += OnTick;

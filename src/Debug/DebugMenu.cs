@@ -63,7 +63,15 @@ namespace StreamTok.GtaV.Debug
         private bool _open;
         private int _paramIndex = -1; // -1 = navegando una lista
 
-        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour, Action<int> stressTest = null)
+        /// <summary>
+        /// El menú siempre existe (F7) para que el streamer pueda encender los modos sin la app.
+        /// showTests: "Juego normal" (lista de acciones sueltas) y la Prueba de estrés — solo para
+        ///            pruebas (ini: [Debug] MenuEnabled=true).
+        /// showParkour: la sección Parkour — apagada por defecto, el modo aún no está terminado
+        ///            (ini: [Menu] ShowParkour=true).
+        /// </summary>
+        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour,
+            bool showTests, bool showParkour, Action<int> stressTest = null)
         {
             _run = run;
 
@@ -72,8 +80,8 @@ namespace StreamTok.GtaV.Debug
                 _values[a.Id] = a.Params.ToDictionary(p => p.Name, p => p.Default);
             }
 
-            Item root = BuildRoot(actions, chiliad, arena, parkour);
-            if (stressTest != null)
+            Item root = BuildRoot(actions, chiliad, arena, parkour, showTests, showParkour);
+            if (showTests && stressTest != null)
             {
                 // Prueba de estrés: muchas acciones al azar seguidas, para ver si el juego aguanta.
                 var stress = new ActionDef("debug_stress", "Prueba de estrés", false,
@@ -89,27 +97,31 @@ namespace StreamTok.GtaV.Debug
 
         // ================================================================ estructura
 
-        private static Item BuildRoot(IReadOnlyList<ActionDef> actions, ChiliadMode mode, ArenaMode arenaMode, ParkourMode parkourMode)
+        private static Item BuildRoot(IReadOnlyList<ActionDef> actions, ChiliadMode mode, ArenaMode arenaMode, ParkourMode parkourMode, bool showTests, bool showParkour)
         {
             var byId = actions.ToDictionary(a => a.Id, StringComparer.OrdinalIgnoreCase);
 
-            // --- Juego normal: todo lo que no pertenece a un modo, agrupado por categoría.
-            var normal = new Item { Title = "Juego normal" };
-            foreach (var cat in Categories)
-            {
-                List<ActionDef> list = actions.Where(a => a.Category == cat.Id).ToList();
-                if (list.Count > 0)
-                {
-                    normal.Children.Add(new Item
-                    {
-                        Title = cat.Title,
-                        Children = list.Select(a => new Item { Action = a }).ToList(),
-                    });
-                }
-            }
-
             var root = new Item { Title = "StreamTok" };
-            root.Children.Add(normal);
+
+            // --- Juego normal: todo lo que no pertenece a un modo, agrupado por categoría.
+            //     Solo en modo pruebas: en producción esas acciones las manda la app.
+            if (showTests)
+            {
+                var normal = new Item { Title = "Juego normal" };
+                foreach (var cat in Categories)
+                {
+                    List<ActionDef> list = actions.Where(a => a.Category == cat.Id).ToList();
+                    if (list.Count > 0)
+                    {
+                        normal.Children.Add(new Item
+                        {
+                            Title = cat.Title,
+                            Children = list.Select(a => new Item { Action = a }).ToList(),
+                        });
+                    }
+                }
+                root.Children.Add(normal);
+            }
 
             // --- Monte Chiliad: interruptor + opciones.
             if (byId.TryGetValue("chiliad_start", out ActionDef start) && byId.TryGetValue("chiliad_stop", out ActionDef stop))
@@ -157,7 +169,7 @@ namespace StreamTok.GtaV.Debug
             }
 
             // --- Parkour: interruptor + opciones.
-            if (byId.TryGetValue("parkour_start", out ActionDef pStart) && byId.TryGetValue("parkour_stop", out ActionDef pStop))
+            if (showParkour && byId.TryGetValue("parkour_start", out ActionDef pStart) && byId.TryGetValue("parkour_stop", out ActionDef pStop))
             {
                 Func<bool> parkourActive = () => parkourMode.IsActive;
                 var parkour = new Item { Title = "Parkour", IsOn = parkourActive };

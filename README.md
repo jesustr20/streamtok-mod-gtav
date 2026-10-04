@@ -88,8 +88,10 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 
 ## Probar sin StreamTok
 
-- **Menú F7 dentro del juego** (apagado por defecto: activarlo con `MenuEnabled=true` en el `.ini`), por secciones: *Juego normal* (por categoría), *Monte Chiliad*,
-  *Pelea de viewers* y *Parkour*. Usa el mismo camino de ejecución que los comandos reales.
+- **Menú F7 dentro del juego** (siempre disponible). Por defecto muestra solo los modos que se
+  encienden desde el juego: *Monte Chiliad* y *Pelea de viewers*. Con `MenuEnabled=true` en el `.ini`
+  agrega *Juego normal* (acciones sueltas por categoría) y la *Prueba de estrés*; con `ShowParkour=true`
+  agrega *Parkour* (modo aún sin terminar). Usa el mismo camino de ejecución que los comandos reales.
   - Arriba/Abajo elegir · Enter/Derecha entrar o ejecutar · Izquierda/Retroceso volver · F7 cerrar.
   - En los parámetros: Izq/Der cambia el valor (salta entre los sugeridos); **Shift** = de 1 en 1 (personalizado) o x10.
   - Los ajustes elegidos se recuerdan hasta recargar el mod (Insert) o cerrar el juego.
@@ -110,8 +112,10 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 Url=ws://localhost:7331
 [Arena]
 HealthTiers=1:20,10:25,100:30,500:40,1000:50   ; desde X monedas : vida por moneda
+[Menu]
+ShowParkour=false   ; true = muestra el modo Parkour en el menú F7 (aún sin terminar)
 [Debug]
-MenuEnabled=false   ; true = menú de pruebas F7 (apagado por defecto para streamers)
+MenuEnabled=false   ; true = agrega al menú F7 la lista de acciones y la prueba de estrés (apagado por defecto para streamers)
 TestNameTag=Viewer de prueba
 ```
 
