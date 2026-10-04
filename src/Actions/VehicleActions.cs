@@ -11,7 +11,7 @@ namespace StreamTok.GtaV.Actions
     {
         public static IEnumerable<ActionDef> All()
         {
-                        // Afecta al jugador: lo sube a un vehículo nuevo. Si ya va en uno, lo REEMPLAZA entero
+            // Afecta al jugador: lo sube a un vehículo nuevo. Si ya va en uno, lo REEMPLAZA entero
             // (mismo lugar, rumbo y velocidad) y el nombre pasa a ser el del último viewer.
             // Sin params: el tipo (car/bike/boat/plane/helicopter) se sortea SIEMPRE adentro de
             // SpawnVehicle, el cliente no lo configura — igual que vehicles_remove, vehicle_repair, etc.
@@ -86,6 +86,18 @@ namespace StreamTok.GtaV.Actions
         private static readonly string[] VehicleTypes = { "car", "bike", "boat", "plane", "helicopter" };
 
         /// <summary>
+        /// Último vehículo que "Generar vehículo" (drive:true) le creó al jugador. Se guarda acá en
+        /// vez de depender de player.CurrentVehicle al momento del siguiente comando: si los
+        /// comandos llegan muy seguidos, el juego puede no haber terminado de registrar que el
+        /// jugador ya se sentó en el anterior, y entonces player.IsInVehicle() da false — ahí, en
+        /// vez de reemplazar, se creaba uno nuevo aparte y el viejo quedaba huérfano (nunca se
+        /// borraba), acumulando vehículos hasta pegar en el límite. Con esta referencia propia,
+        /// SIEMPRE se sabe cuál es el anterior y SIEMPRE se borra, sin importar si el jugador ya
+        /// aparece sentado en él o no.
+        /// </summary>
+        private static Vehicle _lastPlayerVehicle;
+
+        /// <summary>
         /// drive = false ("Generar vehículo al lado"): vehículo aparte, al frente del jugador, con su
         ///             propio nombre. No toca el vehículo en el que va el jugador.
         /// drive = true ("Generar vehículo"): es "el vehículo del jugador". Si ya va en uno, lo
@@ -105,32 +117,50 @@ namespace StreamTok.GtaV.Actions
             // 2) Recién ahora se mira el estado actual (pudo cambiar durante la carga)
             //    y todo el reemplazo ocurre en este mismo frame, sin esperas.
             Ped player = GTA.Game.Player.Character;
-            Vehicle old = drive && player.IsInVehicle() ? player.CurrentVehicle : null;
 
-            if (old != null)
+            // "toDelete": el vehículo anterior del jugador que hay que borrar, pase lo que pase
+            // (la referencia propia es la fuente de verdad — ver _lastPlayerVehicle). Independiente
+            // de esto, "replaceInPlace" dice si el jugador sigue REALMENTE sentado ahí ahora mismo:
+            // solo en ese caso se usa su posición/rumbo/velocidad para un reemplazo suave; si el
+            // jugador se bajó y caminó lejos, el nuevo vehículo aparece junto al JUGADOR (no en el
+            // lugar del viejo), igual que la primera vez.
+            Vehicle toDelete = null;
+            bool replaceInPlace = false;
+            if (drive)
             {
-                // Libera su cupo antes de revisar el límite: se va a reemplazar.
-                ctx.Tracker.Untrack(old);
+                if (_lastPlayerVehicle != null && _lastPlayerVehicle.Exists())
+                {
+                    toDelete = _lastPlayerVehicle;
+                }
+                else if (player.IsInVehicle())
+                {
+                    toDelete = player.CurrentVehicle;
+                }
+                replaceInPlace = toDelete != null && player.IsInVehicle() && player.CurrentVehicle == toDelete;
             }
-            ctx.Tracker.ClampVehicles(1);
+
+            if (toDelete != null)
+            {
+                ctx.Tracker.Untrack(toDelete);
+            }
 
             Vehicle vehicle;
 
-            if (old != null)
+            if (replaceInPlace)
             {
-                Vector3 position = old.Position;
-                float heading = old.Heading;
-                Vector3 velocity = old.Velocity;
+                Vector3 position = toDelete.Position;
+                float heading = toDelete.Heading;
+                Vector3 velocity = toDelete.Velocity;
 
                 // Al viejo solo se le quita la colisión para que el nuevo aparezca justo en su
                 // lugar sin chocar. NO se oculta: en GTA ocultar un vehículo oculta también a
                 // quien va dentro. No hace falta: todo ocurre en este frame, antes de dibujarse.
                 // Se pasa al jugador al nuevo y RECIÉN AHÍ se borra el viejo: nunca queda a pie.
-                old.IsCollisionEnabled = false;
+                toDelete.IsCollisionEnabled = false;
 
                 vehicle = Spawner.SpawnVehicle(model, position, heading, placeOnGround: false);
                 player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
-                EntityTracker.SafeDelete(old);
+                EntityTracker.SafeDelete(toDelete);
 
                 // El jugador siempre visible, salvo que "Modo invisible" esté activo.
                 if (!ctx.Effects.IsActive("player_invisible"))
@@ -150,9 +180,23 @@ namespace StreamTok.GtaV.Actions
                     player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
                     Function.Call(Hash.SET_VEHICLE_ENGINE_ON, vehicle, true, true, false);
                 }
+
+                // El jugador no estaba realmente adentro de "toDelete" (se bajó, o el juego aún no
+                // lo había registrado): igual se borra para no dejarlo huérfano en el mundo.
+                if (toDelete != null)
+                {
+                    EntityTracker.SafeDelete(toDelete);
+                }
             }
 
             ctx.Tracker.Track(vehicle, ctx.NameTag, EntityTracker.KindVehicle, GameData.VehicleTagHeight[type]);
+
+            // Queda guardado como "el último que le generamos al jugador", para el próximo
+            // player_vehicle — sea cual sea el camino (reemplazo o primera vez).
+            if (drive)
+            {
+                _lastPlayerVehicle = vehicle;
+            }
         }
 
         /// <summary>

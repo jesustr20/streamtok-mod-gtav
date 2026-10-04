@@ -73,16 +73,8 @@ namespace StreamTok.GtaV.Entities
         /// <summary>Cuántos vehículos se pueden crear de los pedidos sin pasar el límite.</summary>
         public int ClampVehicles(int requested) => Clamp(requested, vehicles: true);
 
-        /// <summary>Cuántos objetos (rampas…) se pueden crear sin pasar el límite.</summary>
-        public int ClampProps(int requested)
-        {
-            int available = MaxProps - _items.Count(t => t.Entity is Prop);
-            if (available <= 0)
-            {
-                throw new ActionException($"Límite de objetos spawneados alcanzado ({MaxProps})");
-            }
-            return Math.Min(requested, available);
-        }
+        /// <summary>Sin límite: el mod nunca rechaza un spawn por cantidad (es intencional).</summary>
+        public int ClampProps(int requested) => requested;
 
         /// <summary>Peds vivos de un tipo (ej. atacantes), para acciones que los modifican.</summary>
         public List<Ped> AlivePeds(string kind) =>
@@ -102,20 +94,13 @@ namespace StreamTok.GtaV.Entities
             SafeDelete(old);
         }
 
-        private int Clamp(int requested, bool vehicles)
-        {
-            int max = vehicles ? _maxVehicles : _maxPeds;
-            int current = _items.Count(t => vehicles ? t.Entity is Vehicle : t.Entity is Ped);
-            int available = max - current;
-
-            if (available <= 0)
-            {
-                throw new ActionException(vehicles
-                    ? $"Límite de vehículos spawneados alcanzado ({max})"
-                    : $"Límite de spawns alcanzado ({max})");
-            }
-            return Math.Min(requested, available);
-        }
+        /// <summary>
+        /// Sin límite: el mod nunca rechaza un spawn por cantidad. Es intencional — el streamer
+        /// o sus viewers pueden pedir todo lo que quieran (incluso si eso hace lag o crashea el
+        /// juego); el único control de "reemplazar vs acumular" vive en cada acción (ej.
+        /// "Generar vehículo" reemplaza el último propio; "Generar vehículo al lado" acumula).
+        /// </summary>
+        private int Clamp(int requested, bool vehicles) => requested;
 
         /// <summary>Registra una entidad. tagHeight = metros sobre su posición (solo no-peds).</summary>
         public void Track(Entity entity, string nameTag, string kind, float tagHeight = 0f)
