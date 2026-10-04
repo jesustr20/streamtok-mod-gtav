@@ -41,3 +41,34 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "dist/StreamTok.GtaV-${GITHUB_REF_NAME}.zip" \
             --title "StreamTok Mod GTA V $GITHUB_REF_NAME" \
             --generate-notes
+
+  # Corre DESPUÉS de "release" (ya con el Release creado) y en Windows: el exportador es un
+  # .exe de .NET Framework (net48) y una máquina Linux no lo puede ejecutar directo (le
+  # faltaría Mono). windows-latest sí trae todo lo necesario para compilarlo y correrlo.
+  catalog:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Versión desde el tag
+        id: version
+        shell: bash
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Compilar exportador de catálogo
+        run: dotnet build tools/catalog-export/StreamTok.CatalogExport.csproj -c Release
+
+      - name: Generar catalog.json
+        shell: bash
+        run: tools/catalog-export/bin/Release/net48/StreamTok.CatalogExport.exe catalog.json "${{ steps.version.outputs.value }}"
+
+      - name: Subir catalog.json al Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" catalog.json --clobber

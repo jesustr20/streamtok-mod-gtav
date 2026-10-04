@@ -44,9 +44,19 @@ namespace StreamTok.CatalogExport
             var characters = CharacterCatalog.Load(dataDir, logger, validateModels: false);
 
             var rng = new Random();
-            var tracker = new EntityTracker(100, 20);
+
+            // null, no "new EntityTracker(...)": su constructor crea un GTA.UI.TextElement (para
+            // dibujar el nombre del viewer sobre cada entidad), y ESO sí necesita el juego
+            // corriendo de verdad. ArenaMode/ParkourMode/CharacterManager solo GUARDAN el tracker
+            // en un campo — nunca lo usan hasta que se ejecuta una acción, cosa que el exportador
+            // nunca hace. Por eso null es seguro acá.
+            EntityTracker tracker = null;
             var scheduler = new FrameScheduler(logger);
-            var characterManager = new CharacterManager(tracker, rng);
+
+            // null también: CharacterManager crea varios GTA.UI.TextElement/ContainerElement
+            // (barras de vida) directo en sus campos, no en el constructor — se crean igual aunque
+            // nunca se usen. ArenaMode solo guarda esta referencia, nunca la toca al construirse.
+            CharacterManager characterManager = null;
             var parkour = new ParkourMode(tracker, logger, dataDir);
             var arena = new ArenaMode(tracker, characterManager, characters, scheduler, rng, logger, dataDir,
                 ArenaMode.DefaultHealthTiers);
