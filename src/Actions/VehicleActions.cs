@@ -11,10 +11,11 @@ namespace StreamTok.GtaV.Actions
     {
         public static IEnumerable<ActionDef> All()
         {
-            // Afecta al jugador: lo sube a un vehículo nuevo. Si ya va en uno, lo REEMPLAZA entero
+                        // Afecta al jugador: lo sube a un vehículo nuevo. Si ya va en uno, lo REEMPLAZA entero
             // (mismo lugar, rumbo y velocidad) y el nombre pasa a ser el del último viewer.
-            yield return new ActionDef("player_vehicle", "Generar vehículo", true,
-                new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "helicopter", "random") },
+            // Sin params: el tipo (car/bike/boat/plane/helicopter) se sortea SIEMPRE adentro de
+            // SpawnVehicle, el cliente no lo configura — igual que vehicles_remove, vehicle_repair, etc.
+            yield return new ActionDef("player_vehicle", "Generar vehículo", true, null,
                 ctx =>
                 {
                     PlayerTransform.RequireHuman(); // un animal no puede conducir
@@ -23,8 +24,7 @@ namespace StreamTok.GtaV.Actions
 
             // No afecta al jugador: aparece al lado, con su propio nombre fijo.
             // Cada viewer que lo mande genera otro vehículo con su nombre; nunca reemplaza.
-            yield return new ActionDef("spawn_vehicle", "Generar carro al lado", true,
-                new[] { ParamDef.Enum("type", "car", "car", "bike", "boat", "plane", "helicopter", "random") },
+            yield return new ActionDef("spawn_vehicle", "Generar vehículo al lado", true, null,
                 ctx => SpawnVehicle(ctx, drive: false));
 
             yield return new ActionDef("spawn_ramp", "Generar rampa", true,
@@ -82,8 +82,11 @@ namespace StreamTok.GtaV.Actions
                 });
         }
 
+        /// <summary>Las 5 categorías de GameData.Vehicles, para el sorteo parejo en SpawnVehicle.</summary>
+        private static readonly string[] VehicleTypes = { "car", "bike", "boat", "plane", "helicopter" };
+
         /// <summary>
-        /// drive = false ("Generar carro al lado"): vehículo aparte, al frente del jugador, con su
+        /// drive = false ("Generar vehículo al lado"): vehículo aparte, al frente del jugador, con su
         ///             propio nombre. No toca el vehículo en el que va el jugador.
         /// drive = true ("Generar vehículo"): es "el vehículo del jugador". Si ya va en uno, lo
         ///             REEMPLAZA entero (mismo lugar, rumbo y velocidad) y el nombre pasa a ser el
@@ -91,12 +94,8 @@ namespace StreamTok.GtaV.Actions
         /// </summary>
         private static void SpawnVehicle(ActionContext ctx, bool drive)
         {
-            string type = ctx.Enum("type");
-            if (type == "random")
-            {
-                // Al azar solo terrestres: un barco o avión en plena ciudad no sirve de mucho.
-                type = ctx.Pick(new[] { "car", "car", "bike" });
-            }
+            // Siempre al azar entre las 5 categorías, parejo (sin configuración del cliente).
+            string type = ctx.Pick(VehicleTypes);
 
             // 1) Cargar el modelo ANTES de tocar nada: puede tardar unos frames y, mientras,
             //    el jugador sigue manejando su auto normal.

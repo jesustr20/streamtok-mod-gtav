@@ -39,8 +39,8 @@ El nombre del viewer va **siempre encima del objeto**:
 
 | id | Nombre | Parámetros | | Estado |
 |---|---|---|---|---|
-| `player_vehicle` | Generar vehículo (te sube; si ya vas en uno, lo reemplaza sin perder velocidad) | `type` | 🔁 | ✅ v0.3 |
-| `spawn_vehicle` | Generar carro al lado | `type` | 🏷️ | ✅ v0.3 |
+| `player_vehicle` | Generar vehículo (te sube; si ya vas en uno, lo reemplaza sin perder velocidad; el tipo car/bike/boat/plane/helicopter se sortea solo, no es configurable) | — | 🔁 | ✅ v0.3 |
+| `spawn_vehicle` | Generar vehículo al lado (el tipo se sortea solo, no es configurable) | — | 🏷️ | ✅ v0.3 |
 | `vehicles_remove` | Remover vehículos | — | | ✅ v0.3 |
 | `vehicle_repair` | Reparar vehículo | — | | ✅ v0.2 |
 | `vehicle_explode` | Explotar vehículo | — | | ✅ v0.2 |
