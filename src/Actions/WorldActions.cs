@@ -65,21 +65,91 @@ namespace StreamTok.GtaV.Actions
             HiddenVehicles.Clear();
         }
 
+        // ------------------------------------------------------ nitro para todos
+
+        private static readonly Dictionary<int, float> NitroTargets = new Dictionary<int, float>();
+
+        private static void VehiclesNitro(ActionContext ctx)
+        {
+            float power = ctx.Int("power");
+            Ped player = GTA.Game.Player.Character;
+            int frame = 0;
+
+            foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 250f))
+            {
+                if (v == null || !v.Exists())
+                {
+                    continue;
+                }
+                float target = v.Speed + power;
+                NitroTargets[v.Handle] = target;
+                Function.Call(Hash.SET_ENTITY_MAX_SPEED, v, target + 100f); // sin el tope de velocidad del juego
+                Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, v, target);
+            }
+
+            ctx.Scheduler.RepeatFor("vehicles_nitro", Math.Max(1, ctx.Int("seconds")), () =>
+            {
+                if (++frame % 2 != 0)
+                {
+                    return;
+                }
+                foreach (KeyValuePair<int, float> kv in NitroTargets)
+                {
+                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, kv.Key)) continue;
+                    // Se sostiene la velocidad aunque la rueda pierda el suelo (así salen volando en las rampas y baches).
+                    if (Function.Call<float>(Hash.GET_ENTITY_SPEED, kv.Key) < kv.Value * 0.9f)
+                    {
+                        Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, kv.Key, kv.Value);
+                    }
+                }
+            },
+            onEnd: () =>
+            {
+                foreach (int handle in NitroTargets.Keys)
+                {
+                    if (Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                    {
+                        Function.Call(Hash.SET_ENTITY_MAX_SPEED, handle, 10000f);
+                    }
+                }
+                NitroTargets.Clear();
+            });
+        }
+
         // ------------------------------------------------------ coches rápidos
 
         private const int FastDrivingStyle = 786468;   // apurado: esquiva y adelanta
         private const int NormalDrivingStyle = 786603; // normal
         private static readonly HashSet<int> FastVehicles = new HashSet<int>();
         private static int _trafficFrame;
+        private static float _fastSpeed = 80f; // m/s a los que pasan los "vehículos rápidos"
 
         private static void TrafficFastTick()
         {
-            if (++_trafficFrame % 30 != 0)
+            _trafficFrame++;
+            Ped player = GTA.Game.Player.Character;
+
+            // Cada frame par de 6: acelera de verdad a los que ya están en modo rápido (como un "flash").
+            if (_trafficFrame % 6 == 0)
+            {
+                foreach (int handle in FastVehicles)
+                {
+                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle)) continue;
+                    int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1, false);
+                    if (driverHandle == 0 || driverHandle == player.Handle) continue;
+                    float speed = Function.Call<float>(Hash.GET_ENTITY_SPEED, handle);
+                    if (speed < _fastSpeed * 0.95f)
+                    {
+                        Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, handle, Math.Min(_fastSpeed, speed + _fastSpeed * 0.2f + 2f));
+                    }
+                }
+            }
+
+            if (_trafficFrame % 30 != 0)
             {
                 return;
             }
 
-            Ped player = GTA.Game.Player.Character;
             foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 150f))
             {
                 Ped driver = v.Driver;
@@ -88,9 +158,10 @@ namespace StreamTok.GtaV.Actions
                     continue;
                 }
 
+                Function.Call(Hash.SET_ENTITY_MAX_SPEED, v, _fastSpeed + 20f);
                 Function.Call(Hash.SET_DRIVER_ABILITY, driver, 1.0f);
                 Function.Call(Hash.SET_DRIVER_AGGRESSIVENESS, driver, 1.0f);
-                Function.Call(Hash.TASK_VEHICLE_DRIVE_WANDER, driver, v, 70f, FastDrivingStyle);
+                Function.Call(Hash.TASK_VEHICLE_DRIVE_WANDER, driver, v, _fastSpeed, FastDrivingStyle);
             }
         }
 
@@ -112,56 +183,159 @@ namespace StreamTok.GtaV.Actions
         }
 
         /// <summary>
-        /// Cámara temblando + sacudones periódicos a vehículos y peds cercanos (y a veces al jugador).
+        /// Terremoto fuerte: la cámara tiembla, los autos saltan y se empujan unos contra otros (chocan),
+        /// la gente cae, y se abren grietas en la pista (chorros de vapor, polvo y cráteres) cerca del jugador.
+        /// El juego no puede deformar el asfalto de verdad: las grietas son efectos visuales y marcas.
         /// </summary>
+        private static Effects.WorldMood _quakeMood; // clima de antes del terremoto (null = no hay terremoto activo)
+
         private static void Earthquake(ActionContext ctx)
         {
-            int intensity = ctx.Int("intensity");
+            int intensity = Math.Max(1, ctx.Int("intensity"));
             Random rng = ctx.Rng;
             int frame = 0;
+            int nextCrackAt = 0;
+            float jolt = Math.Min(intensity * 0.7f, 20f);          // m/s de sacudón lateral
+            float attract = Math.Min(3f + intensity * 0.9f, 22f);  // m/s con que un auto es empujado hacia otro
+            int crackEveryMs = Math.Max(250, 1400 - intensity * 110);
 
-            Function.Call(Hash.SHAKE_GAMEPLAY_CAM, "ROAD_VIBRATION_SHAKE", intensity * 0.3f);
+            Effects.Ptfx.Request(Effects.Ptfx.Core);
+            float camShake = Math.Min(intensity * 0.6f, 8f);
+            Function.Call(Hash.SHAKE_GAMEPLAY_CAM, "ROAD_VIBRATION_SHAKE", camShake);
+
+            // Cielo oscuro con lluvia y truenos mientras dura (se guarda el clima solo la primera vez).
+            if (_quakeMood == null)
+            {
+                _quakeMood = Effects.WorldMood.Save(clock: false);
+            }
+            Function.Call(Hash.SET_WEATHER_TYPE_NOW_PERSIST, "THUNDER");
 
             ctx.Scheduler.RepeatFor("earthquake", ctx.Int("seconds"), () =>
             {
-                // Un sacudón cada ~10 frames: suficiente para sentirse, sin castigar el rendimiento.
-                if (++frame % 10 != 0)
+                frame++;
+                if (frame % 3 != 0)
                 {
                     return;
                 }
 
+                int now = GTA.Game.GameTime;
                 Ped player = GTA.Game.Player.Character;
-                float force = intensity * 0.6f;
 
-                foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 80f))
+                // Movimiento telúrico: el temblor llega en oleadas (fuerte, más suave, fuerte...).
+                float wave = 0.55f + 0.45f * (float)Math.Sin(now / 900.0);
+                Function.Call(Hash.SET_GAMEPLAY_CAM_SHAKE_AMPLITUDE, camShake * (0.5f + wave));
+
+                Vehicle[] cars = World.GetNearbyVehicles(player.Position, 120f);
+                int n = Math.Min(cars.Length, 30);
+
+                for (int i = 0; i < n; i++)
                 {
-                    Shove(v, rng, force);
+                    Vehicle v = cars[i];
+                    if (v == null || !v.Exists() || v.IsDead)
+                    {
+                        continue;
+                    }
+
+                    // Sacudón: cambio de velocidad lateral y un salto de vez en cuando.
+                    var dv = new Vector3(
+                        (float)(rng.NextDouble() * 2 - 1) * jolt * wave,
+                        (float)(rng.NextDouble() * 2 - 1) * jolt * wave,
+                        rng.NextDouble() < 0.25 ? (float)rng.NextDouble() * jolt * 0.6f * wave : 0f);
+
+                    // Cada ~0,2 s el auto es lanzado hacia el más cercano: así chocan entre sí.
+                    if (frame % 12 == 0)
+                    {
+                        Vehicle nearest = null;
+                        float best = 30f;
+                        for (int j = 0; j < n; j++)
+                        {
+                            if (j == i || cars[j] == null || !cars[j].Exists()) continue;
+                            float d = v.Position.DistanceTo(cars[j].Position);
+                            if (d < best) { best = d; nearest = cars[j]; }
+                        }
+                        if (nearest != null)
+                        {
+                            Vector3 dir = nearest.Position - v.Position;
+                            dir.Z = 0f;
+                            if (dir.Length() > 0.1f)
+                            {
+                                dir.Normalize();
+                                dv += dir * attract;
+                            }
+                        }
+                    }
+
+                    v.Velocity = v.Velocity + dv;
                 }
 
-                foreach (Ped p in World.GetNearbyPeds(player.Position, 60f))
+                foreach (Ped p in World.GetNearbyPeds(player.Position, 70f))
                 {
-                    if (p != player && !p.IsInVehicle() && rng.NextDouble() < 0.1 * intensity / 5.0)
+                    if (p != player && !p.IsInVehicle() && rng.NextDouble() < Math.Min(0.5, 0.05 * intensity))
                     {
-                        Function.Call(Hash.SET_PED_TO_RAGDOLL, p, 1500, 1500, 0, false, false, false);
+                        Function.Call(Hash.SET_PED_TO_RAGDOLL, p, 2000, 2000, 0, false, false, false);
                     }
                 }
 
                 // Al jugador a pie lo tira de vez en cuando, más cuanto más fuerte.
-                if (!player.IsInVehicle() && rng.NextDouble() < 0.03 * intensity)
+                if (!player.IsInVehicle() && rng.NextDouble() < Math.Min(0.6, 0.04 * intensity))
                 {
-                    Function.Call(Hash.SET_PED_TO_RAGDOLL, player, 1200, 1200, 0, false, false, false);
+                    Function.Call(Hash.SET_PED_TO_RAGDOLL, player, 1500, 1500, 0, false, false, false);
+                }
+
+                // Grieta nueva: una línea de vapor, polvo y cráteres sobre la pista cerca del jugador.
+                if (now >= nextCrackAt)
+                {
+                    nextCrackAt = now + crackEveryMs;
+                    OpenCrack(player.Position, rng, intensity);
                 }
             },
-            onEnd: () => Function.Call(Hash.STOP_GAMEPLAY_CAM_SHAKING, true));
+            onEnd: () =>
+            {
+                Function.Call(Hash.STOP_GAMEPLAY_CAM_SHAKING, true);
+                if (_quakeMood != null)
+                {
+                    _quakeMood.Restore();
+                    _quakeMood = null;
+                }
+            });
         }
 
-        private static void Shove(Entity e, Random rng, float force)
+        /// <summary>Abre una grieta de 20-40 m con efectos a lo largo (vapor, polvo, pequeños cráteres).</summary>
+        private static void OpenCrack(Vector3 around, Random rng, int intensity)
         {
-            var push = new Vector3(
-                (float)(rng.NextDouble() * 2 - 1) * force,
-                (float)(rng.NextDouble() * 2 - 1) * force,
-                (float)rng.NextDouble() * force);
-            Function.Call(Hash.APPLY_FORCE_TO_ENTITY, e, 1, push.X, push.Y, push.Z, 0f, 0f, 0f, 0, false, true, true, false, true);
+            double angle = rng.NextDouble() * Math.PI * 2;
+            float distance = 14f + (float)rng.NextDouble() * 55f;
+            Vector3 start = around + new Vector3((float)Math.Cos(angle), (float)Math.Sin(angle), 0f) * distance;
+
+            double dirAngle = rng.NextDouble() * Math.PI * 2;
+            Vector3 dir = new Vector3((float)Math.Cos(dirAngle), (float)Math.Sin(dirAngle), 0f);
+            int steps = 5 + Math.Min(intensity, 10);
+
+            Vector3 p = start;
+            for (int i = 0; i < steps; i++)
+            {
+                // Zigzag: la grieta no es una recta perfecta.
+                dirAngle += (rng.NextDouble() - 0.5) * 0.7;
+                dir = new Vector3((float)Math.Cos(dirAngle), (float)Math.Sin(dirAngle), 0f);
+                p += dir * 3.5f;
+
+                float ground = World.GetGroundHeight(p + new Vector3(0f, 0f, 30f));
+                if (ground <= 0f)
+                {
+                    continue;
+                }
+                Vector3 at = new Vector3(p.X, p.Y, ground);
+
+                // Chorro de vapor saliendo de la grieta (no hace daño) y polvo.
+                Function.Call(Hash.ADD_EXPLOSION, at.X, at.Y, at.Z, 11, 0f, true, false, 0.3f, false);
+                Effects.Ptfx.Burst(Effects.Ptfx.Core, "ent_amb_smoke_foundry", at, 2.5f);
+
+                // Cada dos puntos, un pequeño cráter con marcas (rompe el asfalto visualmente).
+                if (i % 2 == 0)
+                {
+                    Function.Call(Hash.ADD_EXPLOSION, at.X, at.Y, at.Z, 0, 0.25f, true, false, 0.6f, false);
+                }
+            }
         }
 
         private static void SetMaxWanted()
@@ -238,9 +412,26 @@ namespace StreamTok.GtaV.Actions
                 new[] { ParamDef.Bool("enabled", true) },
                 ctx => SetWorld(ctx, "vehicles_invisible", VehiclesInvisibleStart, VehiclesInvisibleTick, VehiclesInvisibleEnd));
 
-            yield return new ActionDef("traffic_fast", "Coches rápidos", false,
-                new[] { ParamDef.Bool("enabled", true) },
-                ctx => SetWorld(ctx, "traffic_fast", null, TrafficFastTick, TrafficFastEnd));
+            yield return new ActionDef("traffic_fast", "Vehículos rápidos", false,
+                new[]
+                {
+                    ParamDef.Bool("enabled", true),
+                    ParamDef.Int("speed", 80, 5, ParamDef.NoLimit, 40, 80, 120, 200, 300), // m/s (80 ≈ 290 km/h)
+                },
+                ctx =>
+                {
+                    _fastSpeed = Math.Max(5, ctx.Int("speed"));
+                    SetWorld(ctx, "traffic_fast", null, TrafficFastTick, TrafficFastEnd);
+                });
+
+            // Nitro para TODOS los vehículos cercanos (incluido el tuyo): salen disparados y se sostiene la velocidad.
+            yield return new ActionDef("vehicles_nitro", "Vehículos con nitro", false,
+                new[]
+                {
+                    ParamDef.Int("power", 80, 1, ParamDef.NoLimit, 40, 80, 150, 300),   // m/s que se suman (80 ≈ 290 km/h)
+                    ParamDef.Int("seconds", 6, 1, ParamDef.NoLimit, 3, 6, 10, 20),
+                },
+                VehiclesNitro);
 
             yield return new ActionDef("gravity_low", "Gravedad reducida", false,
                 new[]
@@ -264,7 +455,7 @@ namespace StreamTok.GtaV.Actions
 
             yield return new ActionDef("set_time", "Hora del día", false,
                 new[] { ParamDef.Int("hour", 12, 0, 23) },
-                ctx => Function.Call(Hash.SET_CLOCK_TIME, ctx.Int("hour"), 0, 0));
+                ctx => Function.Call(Hash.SET_CLOCK_TIME, ((ctx.Int("hour") % 24) + 24) % 24, 0, 0));
         }
     }
 }

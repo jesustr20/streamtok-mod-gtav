@@ -39,11 +39,11 @@ namespace StreamTok.GtaV.Actions
         /// </summary>
         public int[] Presets { get; private set; }
 
-        /// <summary>Tope "sin límite" para cantidades (spawns): tan alto que nunca se alcanza.</summary>
+        /// <summary>Sin límites: ningún parámetro numérico tiene rango (min/max se ignoran); este valor solo existe porque el catálogo publica uno.</summary>
         public const int NoLimit = 1000000;
 
         public static ParamDef Int(string name, int def, int min, int max, params int[] presets) =>
-            new ParamDef { Name = name, Type = "int", Default = def, Min = min, Max = max, Presets = presets.Length > 0 ? presets : null };
+            new ParamDef { Name = name, Type = "int", Default = def, Min = -NoLimit, Max = NoLimit, Presets = presets.Length > 0 ? presets : null };
 
         public static ParamDef Enum(string name, string def, params string[] options) =>
             new ParamDef { Name = name, Type = "enum", Default = def, Options = options };

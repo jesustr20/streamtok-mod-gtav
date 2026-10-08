@@ -125,6 +125,54 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
+        /// <summary>
+        /// Marca un ped como "peleador por script": si llega a menos de 3 m del jugador, le pega cada ~0,9 s
+        /// (el modelo del mono sabe acercarse y ponerse en guardia, pero no golpear).
+        /// </summary>
+        public void MarkBrawler(Entity entity)
+        {
+            Tracked t = _items.Find(i => i.Entity == entity);
+            if (t != null) t.Brawler = true;
+        }
+
+        private static void Brawl(Tracked t)
+        {
+            Ped monkey = t.Entity as Ped;
+            Ped player = GTA.Game.Player.Character;
+            int now = GTA.Game.GameTime;
+            if (monkey == null || player.IsDead || now < t.NextHit)
+            {
+                return;
+            }
+            if (monkey.Position.DistanceTo(player.Position) > 3f)
+            {
+                return;
+            }
+
+            t.NextHit = now + 900;
+            Vector3 toPlayer = player.Position - monkey.Position;
+            monkey.Heading = toPlayer.ToHeading();
+
+            // Daño: primero la armadura, luego la vida.
+            int dmg = 12;
+            if (player.Armor > 0)
+            {
+                int absorbed = Math.Min(player.Armor, dmg);
+                player.Armor -= absorbed;
+                dmg -= absorbed;
+            }
+            if (dmg > 0)
+            {
+                player.Health = Math.Max(0, player.Health - dmg);
+            }
+
+            Function.Call(Hash.SHAKE_GAMEPLAY_CAM, "SMALL_EXPLOSION_SHAKE", 0.08f);
+            if (!player.IsInVehicle() && player.Health > 0 && now % 7 == 0)
+            {
+                Function.Call(Hash.SET_PED_TO_RAGDOLL, player, 600, 600, 0, false, false, false);
+            }
+        }
+
         /// <summary>true si la entidad la creó el mod (atacantes, vehículos de viewers…).</summary>
         public bool IsTracked(Entity entity) => _items.Exists(t => t.Entity == entity);
 
@@ -187,6 +235,11 @@ namespace StreamTok.GtaV.Entities
                     continue;
                 }
 
+                if (t.Brawler)
+                {
+                    Brawl(t);
+                }
+
                 if (t.Tag == null || e.Position.DistanceTo(origin) > range)
                 {
                     continue;
@@ -239,6 +292,8 @@ namespace StreamTok.GtaV.Entities
             public string Tag;
             public string Kind;
             public float TagHeight;
+            public bool Brawler;   // pega por script (monos que no saben atacar solos)
+            public int NextHit;
         }
     }
 }

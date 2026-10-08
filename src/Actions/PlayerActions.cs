@@ -76,6 +76,89 @@ namespace StreamTok.GtaV.Actions
                 Teleport);
 
 
+            yield return new ActionDef("teleport_random", "TP random", false, null, TeleportRandom);
+
+            yield return new ActionDef("teleport_location", "TP ubicación", false,
+                new[] { ParamDef.Enum("location", "maze_bank", GameData.Keys(GameData.Locations)) },
+                ctx => TeleportTo(GameData.Locations[ctx.Enum("location")]));
+
+            // Volantín: salta a la altura pedida y da la(s) vuelta(s) completas en el aire; cae de pie.
+            yield return new ActionDef("player_flip", "Volantín", false,
+                new[]
+                {
+                    ParamDef.Enum("direction", "back", "back", "front", "left", "right"),
+                    ParamDef.Int("height", 6, 1, ParamDef.NoLimit, 3, 6, 10, 20, 50),   // metros que sube
+                    ParamDef.Int("flips", 1, 1, ParamDef.NoLimit, 1, 2, 3, 5),
+                },
+                ctx =>
+                {
+                    Ped p = Player;
+                    bool inVehicle = p.IsInVehicle();
+                    Entity target = inVehicle ? (Entity)p.CurrentVehicle : p;
+                    string direction = ctx.Enum("direction");
+                    int flips = Math.Max(1, ctx.Int("flips"));
+
+                    // Física: para subir h metros hace falta v = sqrt(2·g·h); en el aire está 2·v/g segundos.
+                    const float gravity = 9.81f;
+                    float height = Math.Max(1, ctx.Int("height"));
+                    float up = (float)Math.Sqrt(2f * gravity * height);
+                    float airMs = 2f * up / gravity * 1000f;
+                    // Las vueltas ocupan ~80 % del vuelo para que termine de girar antes de tocar el suelo.
+                    float spinMs = airMs * 0.8f;
+
+                    Vector3 v = target.Velocity;
+                    target.Velocity = new Vector3(v.X, v.Y, Math.Max(v.Z, 0f) + up);
+
+                    float heading = target.Rotation.Z;
+                    int startHealth = p.Health;
+                    int start = GTA.Game.GameTime;
+                    if (!inVehicle)
+                    {
+                        // A pie: que no se desplome como un muñeco al caer ni se lastime con la caída.
+                        Function.Call(Hash.SET_PED_CAN_RAGDOLL, p, false);
+                    }
+
+                    ctx.Scheduler.Until(() =>
+                    {
+                        if (target == null || !target.Exists())
+                        {
+                            Function.Call(Hash.SET_PED_CAN_RAGDOLL, p, true);
+                            return true;
+                        }
+
+                        int elapsed = GTA.Game.GameTime - start;
+                        float t = Math.Min(1f, elapsed / spinMs);
+                        if (t < 1f)
+                        {
+                            float angle = 360f * flips * t;
+                            float pitch = 0f, roll = 0f;
+                            switch (direction)
+                            {
+                                case "front": pitch = -angle; break;
+                                case "left": roll = -angle; break;
+                                case "right": roll = angle; break;
+                                default: pitch = angle; break;   // back
+                            }
+                            Function.Call(Hash.SET_ENTITY_ROTATION, target, pitch, roll, heading, 2, true);
+                            return false;
+                        }
+
+                        // Terminó de girar: derecho y mirando como antes, hasta que aterrice.
+                        Function.Call(Hash.SET_ENTITY_ROTATION, target, 0f, 0f, heading, 2, true);
+                        if (elapsed < airMs + 600f)
+                        {
+                            return false;
+                        }
+
+                        if (!inVehicle)
+                        {
+                            if (p.Health < startHealth) p.Health = startHealth; // sin daño por la caída
+                            Function.Call(Hash.SET_PED_CAN_RAGDOLL, p, true);
+                        }
+                        return true;
+                    });
+                });
+
             yield return new ActionDef("player_jump", "Salto", false,
                 new[] { ParamDef.Int("force", 15, 5, 60) },
                 ctx =>
@@ -220,6 +303,44 @@ namespace StreamTok.GtaV.Actions
             Function.Call(Hash.REQUEST_COLLISION_AT_COORD, destination.X, destination.Y, destination.Z);
             target.Position = destination + new Vector3(0f, 0f, 1f);
             target.Velocity = Vector3.Zero;
+        }
+
+        /// <summary>Teletransporta al jugador (con su vehículo) a un punto, pidiendo antes el suelo del destino.</summary>
+        private static void TeleportTo(Vector3 destination)
+        {
+            Ped p = Player;
+            Entity target = p.IsInVehicle() ? (Entity)p.CurrentVehicle : p;
+            Function.Call(Hash.REQUEST_COLLISION_AT_COORD, destination.X, destination.Y, destination.Z);
+            target.Position = destination + new Vector3(0f, 0f, 1f);
+            target.Velocity = Vector3.Zero;
+        }
+
+        /// <summary>
+        /// Cualquier calle del mapa al azar: se sortea un punto y se usa la calle más cercana (así el suelo
+        /// existe siempre). Si cae en el mar o en un monte sin calles, se sortea otro.
+        /// </summary>
+        private static void TeleportRandom(ActionContext ctx)
+        {
+            for (int attempt = 0; attempt < 25; attempt++)
+            {
+                float x = -3300f + (float)ctx.Rng.NextDouble() * 6600f;
+                float y = -3200f + (float)ctx.Rng.NextDouble() * 10400f;
+                var node = new OutputArgument();
+                bool found = Function.Call<bool>(Hash.GET_CLOSEST_VEHICLE_NODE, x, y, 100f, node, 1, 3.0f, 0f);
+                if (!found)
+                {
+                    continue;
+                }
+                Vector3 pos = node.GetResult<Vector3>();
+                if (new Vector2(pos.X - x, pos.Y - y).Length() > 350f)
+                {
+                    continue; // el punto estaba en el mar o lejos de toda calle
+                }
+                TeleportTo(pos);
+                return;
+            }
+            string[] keys = GameData.Keys(GameData.Locations);
+            TeleportTo(GameData.Locations[ctx.Pick(keys)]);
         }
 
         /// <summary>Efecto sobre el personaje que se activa (enabled = sí) o desactiva (enabled = no).</summary>

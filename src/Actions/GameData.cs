@@ -48,6 +48,7 @@ namespace StreamTok.GtaV.Actions
             ["rpg"] = WeaponHash.RPG,
             ["bat"] = WeaponHash.Bat,
             ["knife"] = WeaponHash.Knife,
+            ["hammer"] = WeaponHash.Hammer,
         };
 
         public static readonly Dictionary<string, string> Weather = new Dictionary<string, string>

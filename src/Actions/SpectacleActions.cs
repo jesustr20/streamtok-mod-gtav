@@ -153,8 +153,8 @@ namespace StreamTok.GtaV.Actions
             var fires = new List<GroundFire>();
             int nextStar = 0;
             int nextFireball = 0;
-            int starEveryMs = 700 / density;       // densidad 5 ≈ 7 estrellas fugaces por segundo
-            int fireballEveryMs = 4000 / density;  // densidad 5 ≈ 1 bola de fuego cada 0,8 s
+            int starEveryMs = 700 / Math.Max(1, density);       // densidad 5 ≈ 7 estrellas fugaces por segundo
+            int fireballEveryMs = 4000 / Math.Max(1, density);  // densidad 5 ≈ 1 bola de fuego cada 0,8 s
 
             ctx.Scheduler.RepeatFor("meteor_shower", ctx.Int("seconds"), () =>
             {

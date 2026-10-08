@@ -26,8 +26,8 @@ namespace StreamTok.GtaV.Actions
                 new[]
                 {
                     ParamDef.Int("count", 3, 1, ParamDef.NoLimit),
-                    ParamDef.Enum("weapon", "pistol", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "none", "random"),
-                    ParamDef.Enum("model", "normal", "normal", "random", "chimp", "alien"),
+                    ParamDef.Enum("weapon", "pistol", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "hammer", "none", "random"),
+                    ParamDef.Enum("model", "normal", "normal", "random", "chimp", "chimp2", "rhesus", "alien"),
                 },
                 SpawnAttackers);
 
@@ -43,7 +43,7 @@ namespace StreamTok.GtaV.Actions
                 ctx => ctx.Tracker.RemoveKind(EntityTracker.KindAttacker));
 
             yield return new ActionDef("attackers_arm", "Equipar armas en atacantes", false,
-                new[] { ParamDef.Enum("weapon", "rifle", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "random") },
+                new[] { ParamDef.Enum("weapon", "rifle", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "hammer", "random") },
                 ArmAttackers);
 
             yield return new ActionDef("attackers_heal", "Curar atacantes", false, null,
@@ -91,8 +91,7 @@ namespace StreamTok.GtaV.Actions
                 if (hostile)
                 {
                     ped.RelationshipGroup = ctx.Tracker.HostileGroup;
-                    ped.Task.FightAgainst(GTA.Game.Player.Character);
-                    ped.AlwaysKeepTask = true;
+                    MakeFierce(ped, GTA.Game.Player.Character);
                 }
                 else
                 {
@@ -101,6 +100,43 @@ namespace StreamTok.GtaV.Actions
 
                 ctx.Tracker.Track(ped, ctx.NameTag, EntityTracker.KindAnimal);
             }
+        }
+
+        /// <summary>
+        /// Ataca de verdad: sin huir, sin asustarse por disparos/eventos y siempre en combate. Los animales
+        /// "pacíficos" (el mono, el cerdo…) por defecto salen corriendo al ver al jugador aunque tengan la
+        /// tarea de pelear; estos atributos les quitan ese comportamiento.
+        /// </summary>
+        private static void MakeFierce(Ped ped, Ped target)
+        {
+            Function.Call(Hash.SET_PED_FLEE_ATTRIBUTES, ped, 0, false);
+            Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, ped, 46, true);  // siempre pelea
+            Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, ped, 5, true);   // ataca aunque el rival esté armado
+            Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, ped, 17, false); // no se retira (always flee)
+            Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, ped, 0, false);  // sin cobertura: va directo
+            Function.Call(Hash.SET_PED_COMBAT_ABILITY, ped, 2);            // profesional
+            Function.Call(Hash.SET_PED_COMBAT_MOVEMENT, ped, 2);           // ofensivo
+            Function.Call(Hash.SET_PED_COMBAT_RANGE, ped, 0);              // cerca
+            Function.Call(Hash.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS, ped, true); // no reacciona con miedo a eventos
+            Function.Call(Hash.SET_PED_CAN_BE_TARGETTED, ped, true);
+            ped.Task.ClearAll();
+
+            // Secuencia: correr hasta el jugador (el animal no puede "decidir" huir) y luego combatir.
+            var seq = new OutputArgument();
+            Function.Call(Hash.OPEN_SEQUENCE_TASK, seq);
+            Function.Call(Hash.TASK_GO_TO_ENTITY, 0, target, 20000, 1.2f, 3f, 1073741824, 0);
+            Function.Call(Hash.TASK_COMBAT_PED, 0, target, 0, 16);
+            Function.Call(Hash.SET_SEQUENCE_TO_REPEAT, seq.GetResult<int>(), 1);
+            Function.Call(Hash.CLOSE_SEQUENCE_TASK, seq.GetResult<int>());
+            Function.Call(Hash.TASK_PERFORM_SEQUENCE, ped, seq.GetResult<int>());
+            Function.Call(Hash.CLEAR_SEQUENCE_TASK, seq);
+            ped.AlwaysKeepTask = true;
+        }
+
+        /// <summary>El rhesus ataca; los chimpancés huyen. Si el juego no tiene el rhesus, se usa el modelo pedido.</summary>
+        private static string MonkeyModel(string requested)
+        {
+            return new Model("a_c_rhesus").IsInCdImage ? "a_c_rhesus" : requested;
         }
 
         /// <summary>Tipo de ped 28 = animal (no pueden usar armas).</summary>
@@ -123,10 +159,6 @@ namespace StreamTok.GtaV.Actions
 
             foreach (Ped ped in RequireAttackers(ctx))
             {
-                if (IsAnimal(ped))
-                {
-                    continue; // monos, cerdos… no pueden usar armas
-                }
                 string w = weapon == "random" ? ctx.Pick(options) : weapon;
                 ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
             }
@@ -277,7 +309,10 @@ namespace StreamTok.GtaV.Actions
                 string modelName;
                 switch (model)
                 {
-                    case "chimp": modelName = "a_c_chimp"; break;
+                    // Los chimpancés del juego solo huyen: se usa el rhesus (que sí se acerca y pelea) cuando existe.
+                    case "chimp": modelName = MonkeyModel("a_c_chimp"); break;
+                    case "chimp2": modelName = MonkeyModel("a_c_chimp_02"); break;
+                    case "rhesus": modelName = "a_c_rhesus"; break;     // mono rhesus (versiones nuevas del juego)
                     case "alien": modelName = "s_m_m_movalien_01"; break;
                     case "random": modelName = ctx.Pick(GameData.RandomAttackers); break;
                     default: modelName = ctx.Pick(GameData.NormalAttackers); break;
@@ -286,21 +321,34 @@ namespace StreamTok.GtaV.Actions
                 Ped ped = Spawner.SpawnPed(modelName, Spawner.NearPlayer(ctx.Rng, 12f, 25f));
                 ped.RelationshipGroup = ctx.Tracker.HostileGroup;
 
-                // Los animales (el mono) no pueden usar armas: pelean cuerpo a cuerpo.
-                if (weapon != "none" && modelName != "a_c_chimp")
+                // El chimpancé SÍ usa arma: armado deja de comportarse como animal asustadizo. Sin arma
+                // elegida lleva un martillo.
+                bool chimp = modelName == "a_c_chimp" || modelName == "a_c_chimp_02" || modelName == "a_c_rhesus";
+                if (weapon != "none" || chimp)
                 {
-                    string w = weapon == "random" ? ctx.Pick(attackerWeapons) : weapon;
+                    string w = weapon == "random" ? ctx.Pick(attackerWeapons) : (weapon == "none" ? "hammer" : weapon);
                     ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
                 }
 
-                ped.Task.FightAgainst(player);
-                ped.AlwaysKeepTask = true;
+                if (IsAnimal(ped))
+                {
+                    MakeFierce(ped, player); // el mono no huye: ataca
+                }
+                else
+                {
+                    ped.Task.FightAgainst(player);
+                    ped.AlwaysKeepTask = true;
+                }
 
                 Blip blip = ped.AddBlip();
                 blip.Color = BlipColor.Red;
                 blip.Scale = 0.7f;
 
                 ctx.Tracker.Track(ped, ctx.NameTag, EntityTracker.KindAttacker);
+                if (chimp)
+                {
+                    ctx.Tracker.MarkBrawler(ped); // se acerca pero no sabe golpear: el mod lo hace por él
+                }
             }
         }
     }
