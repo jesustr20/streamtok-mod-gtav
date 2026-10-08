@@ -37,7 +37,7 @@ namespace StreamTok.GtaV
     ///   GhostAlpha=255  CleanupSeconds=12  FinishGraceSeconds=30
     ///   AllowRecording=false   (true = herramientas del creador: grabar pistas y verlas)
     ///   [Debug]
-    ///   MenuEnabled=true    (false = oculta del menú F7 la lista de acciones sueltas y la prueba de estrés)
+    ///   MenuEnabled=false   (true = agrega al menú F7 la lista de acciones sueltas y la prueba de estrés)
     ///   TestNameTag=Viewer de prueba
     /// </summary>
     public sealed class StreamTokMod : Script
@@ -136,14 +136,14 @@ namespace StreamTok.GtaV
             }
 
             // El menú F7 SIEMPRE existe (el streamer enciende Chiliad / Pelea desde ahí).
-            // MenuEnabled (por defecto true) agrega además la lista de acciones sueltas y la prueba de estrés;
+            // MenuEnabled=true (apagado por defecto) agrega además la lista de acciones sueltas y la prueba de estrés;
             // ShowParkour=true agrega la sección Parkour (modo aún sin terminar).
-            bool showTests = Setting("Debug", "MenuEnabled", true);
+            bool showTests = Setting("Debug", "MenuEnabled", false);
             bool showParkour = Setting("Menu", "ShowParkour", false);
             bool showRace = Setting("Menu", "ShowRace", false);
             _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour, _services.Race, showTests, showParkour, showRace, StartStressTest);
 
-            Log($"Catálogo: {_registry.All.Count} acciones. Menú F7 activo (pruebas: {(showTests ? "sí" : "no; [Debug] MenuEnabled=true para mostrarlas")}, Parkour: {(showParkour ? "sí" : "no; [Menu] ShowParkour=true")}). Log: {_log.FilePath}");
+            Log($"Catálogo: {_registry.All.Count} acciones. Menú F7 activo (pruebas: {(showTests ? "sí" : "no; [Debug] MenuEnabled=true")}, Parkour: {(showParkour ? "sí" : "no; [Menu] ShowParkour=true")}). Log: {_log.FilePath}");
 
             Interval = 0; // cada frame: nombres, efectos y menú se dibujan frame a frame
             Tick += OnTick;

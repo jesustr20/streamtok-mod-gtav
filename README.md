@@ -109,8 +109,22 @@ MaxSpawnedVehicles=20
 [Arena]
 HealthTiers=1:20,10:25,100:30,500:40,1000:50   ; desde X monedas : vida por moneda
 [Debug]
-MenuEnabled=false   ; true = menú de pruebas F7 (apagado por defecto para streamers)
+MenuEnabled=false   ; true = menú de pruebas F7 con la lista de acciones sueltas (apagado por defecto para streamers)
 TestNameTag=Viewer de prueba
+[Menu]
+ShowParkour=false   ; true = muestra el modo Parkour (aún sin terminar)
+ShowRace=false      ; true = muestra el modo Carrera en el menú F7
+[Webhook]
+Enabled=false       ; true = acepta comandos por HTTP local (127.0.0.1:7332), p. ej. desde TikFinity
+MaxRepeat=1000000   ; tope de "repeat" por petición (sin límite práctico)
+[Chiliad]
+RespawnLikeGame=true ; al morir reaparece como en el juego (false = en el último punto seguro)
+[Race]
+AutoCamera=true     ; cámara de transmisión que sigue la carrera
+PlayerRaces=false   ; true = el jugador también corre
+RealDriving=true    ; los pilotos conducen con la IA del juego (false = sobre rieles)
+AllowRecording=false ; true = herramientas del creador: grabar pistas y verlas
+Scenery=false       ; decoración de la pista
 ```
 
 ## Versiones probadas

@@ -53,7 +53,8 @@ El nombre del viewer va **siempre encima del objeto**:
 | `spawn_ramp` | Generar rampa (delante, mirando hacia donde vas) | `distance` | 🏷️ | 🚧 v0.5 |
 | `ramps_remove` | Remover rampas | — | | 🚧 v0.5 |
 | `vehicles_invisible` | Vehículos invisibles (el jugador siempre se ve) | `enabled` | | 🚧 v0.5 |
-| `traffic_fast` | Coches rápidos (tráfico apurado) | `enabled` | | 🚧 v0.5 |
+| `traffic_fast` | Vehículos rápidos (todos pasan rapidísimo, como un flash) | `enabled`, `speed` | | ✅ v0.10 |
+| `vehicles_nitro` | Vehículos con nitro (todos los cercanos salen disparados y pueden volar) | `power`, `seconds` | | ✅ v0.10 |
 
 ## 3. Jugador
 
@@ -70,6 +71,9 @@ El nombre del viewer va **siempre encima del objeto**:
 | `player_jump` | Salto | `force` | | ✅ v0.3 |
 | `player_skydive` | Paracaidismo | `height` | | ✅ v0.3 |
 | `player_random_outfit` | Ropa random | — | | ✅ v0.3 |
+| `teleport_random` | TP random (una calle al azar de todo el mapa) | | | ✅ v0.10 |
+| `teleport_location` | TP ubicación (lugar elegido de la lista) | `location` | | ✅ v0.10 |
+| `player_flip` | Volantín (salto mortal en el aire, a pie o en vehículo) | `direction`, `height`, `flips` | | ✅ v0.10 |
 | `teleport` | Teletransporte (con el vehículo si vas en uno) | `mode` (up, random, location, next, previous), `location`, `height` | | 🚧 v0.4 |
 
 ## 4. Armas
