@@ -9,6 +9,7 @@ using StreamTok.GtaV.Debug;
 using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
 using StreamTok.GtaV.Modes;
+using StreamTok.GtaV.Webhook;
 using Notification = GTA.UI.Notification;
 
 namespace StreamTok.GtaV
@@ -25,6 +26,16 @@ namespace StreamTok.GtaV
     ///   HealthTiers=1:20,10:25,100:30,500:40,1000:50   (desde X monedas : vida por moneda)
     ///   [Menu]
     ///   ShowParkour=false   (true = muestra el modo Parkour en el menú F7; aún sin terminar)
+    ///   ShowRace=false      (true = muestra el modo Carrera en el menú F7; en desarrollo)
+    ///   [Webhook]
+    ///   Enabled=false       (true = acepta comandos por HTTP local, p. ej. desde TikFinity)
+    ///   Port=7332
+    ///   Token=              (opcional)
+    ///   MaxRepeat=1000000
+    ///   [Race]              (modo Carrera, en desarrollo; se muestra con [Menu] ShowRace=true)
+    ///   BaseKmh=120  Laps=3  LobbySeconds=30  BoostPerStack=0.15  MaxStacks=8  BoostSeconds=6
+    ///   GhostAlpha=255  CleanupSeconds=12  FinishGraceSeconds=30
+    ///   AllowRecording=false   (true = herramientas del creador: grabar pistas y verlas)
     ///   [Debug]
     ///   MenuEnabled=false   (true = agrega al menú F7 la lista de acciones y la prueba de estrés)
     ///   TestNameTag=Viewer de prueba
@@ -52,6 +63,7 @@ namespace StreamTok.GtaV
         private readonly ActionRegistry _registry;
         private readonly ActionServices _services;
         private readonly StreamTokClient _client;
+        private readonly WebhookServer _webhook;
         private readonly DebugMenu _menu;
         private readonly string _testNameTag;
         private bool _announced;
@@ -68,6 +80,27 @@ namespace StreamTok.GtaV
             var scheduler = new FrameScheduler(Log);
             var characterManager = new CharacterManager(tracker, rng);
             var parkour = new ParkourMode(tracker, Log, BaseDirectory);
+            var race = new RaceMode(tracker, rng, Log, BaseDirectory, new RaceSettings
+            {
+                BaseKmh = Setting("Race", "BaseKmh", 120f),
+                Laps = Setting("Race", "Laps", 3),
+                LobbySeconds = Setting("Race", "LobbySeconds", 30),
+                BoostPerStack = Setting("Race", "BoostPerStack", 0.15f),
+                MaxStacks = Setting("Race", "MaxStacks", 8),
+                BoostSeconds = Setting("Race", "BoostSeconds", 6f),
+                GhostAlpha = Setting("Race", "GhostAlpha", 255),
+                CleanupSeconds = Setting("Race", "CleanupSeconds", 12),
+                FinishGraceSeconds = Setting("Race", "FinishGraceSeconds", 30),
+                Scenery = Setting("Race", "Scenery", false),
+                CrowdMax = Setting("Race", "CrowdMax", 60),
+                SceneryOffset = Setting("Race", "SceneryOffset", 7f),
+                BarrierTurn = Setting("Race", "BarrierTurn", 0f),
+                ArchTurn = Setting("Race", "ArchTurn", 0f),
+                AutoCamera = Setting("Race", "AutoCamera", true),
+                PlayerRaces = Setting("Race", "PlayerRaces", false),
+                BarrierModel = Setting("Race", "BarrierModel", ""),
+                RealDriving = Setting("Race", "RealDriving", true),
+            });
             var arena = new ArenaMode(tracker, characterManager, characters, scheduler, rng, Log, BaseDirectory,
                 Setting("Arena", "HealthTiers", ArenaMode.DefaultHealthTiers));
             _services = new ActionServices(
@@ -75,11 +108,12 @@ namespace StreamTok.GtaV
                 new PlayerEffects(Log),
                 scheduler,
                 characterManager,
-                new ChiliadMode(tracker, scheduler, rng, Log, BaseDirectory),
+                new ChiliadMode(tracker, scheduler, rng, Log, BaseDirectory) { RespawnLikeGame = Setting("Chiliad", "RespawnLikeGame", true) },
                 arena,
                 parkour,
+                race,
                 rng);
-            _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses);
+            _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses, race.TrackNames, Setting("Race", "AllowRecording", false));
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
 
             string url = Setting("Connection", "Url", DefaultUrl);
@@ -92,12 +126,22 @@ namespace StreamTok.GtaV
             _client = new StreamTokClient(uri, Protocol.BuildHello(ModVersion, _registry.All), Log);
             _client.Start();
 
+            // Entrada opcional por webhook (TikFinity, Interactive...): apagada por defecto.
+            // Comparte la cola del WebSocket: mismo límite por frame y mismo catálogo.
+            if (Setting("Webhook", "Enabled", false))
+            {
+                var hook = new WebhookServer(Setting("Webhook", "Port", 7332), Setting("Webhook", "Token", ""),
+                    Setting("Webhook", "MaxRepeat", 1000000), _registry, _client.Commands, Log);
+                if (hook.Start()) _webhook = hook;
+            }
+
             // El menú F7 SIEMPRE existe (el streamer enciende Chiliad / Pelea desde ahí).
             // MenuEnabled=true agrega además la lista de acciones sueltas y la prueba de estrés;
             // ShowParkour=true agrega la sección Parkour (modo aún sin terminar).
             bool showTests = Setting("Debug", "MenuEnabled", false);
             bool showParkour = Setting("Menu", "ShowParkour", false);
-            _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour, showTests, showParkour, StartStressTest);
+            bool showRace = Setting("Menu", "ShowRace", false);
+            _menu = new DebugMenu(_registry.All, RunFromMenu, _services.Chiliad, _services.Arena, _services.Parkour, _services.Race, showTests, showParkour, showRace, StartStressTest);
 
             Log($"Catálogo: {_registry.All.Count} acciones. Menú F7 activo (pruebas: {(showTests ? "sí" : "no; [Debug] MenuEnabled=true")}, Parkour: {(showParkour ? "sí" : "no; [Menu] ShowParkour=true")}). Log: {_log.FilePath}");
 
@@ -131,10 +175,18 @@ namespace StreamTok.GtaV
                     : "~p~StreamTok~s~: ~r~desconectado~s~, reintentando...");
             }
 
+            if (_webhook != null)
+            {
+                while (_webhook.Notices.TryDequeue(out string notice))
+                {
+                    Notification.Show($"~p~StreamTok~s~ {TextUtil.CleanText(notice)}");
+                }
+            }
+
             // Protección: si llegan cientos de comandos de golpe, los más viejos se descartan (con aviso a la app).
             while (_client.Commands.Count > MaxQueuedCommands && _client.Commands.TryDequeue(out ModCommand dropped))
             {
-                _client.Send(Protocol.BuildAck(dropped.Id, "Descartado: demasiados comandos en cola"));
+                if (dropped.Id == null || !dropped.Id.StartsWith("hook-")) _client.Send(Protocol.BuildAck(dropped.Id, "Descartado: demasiados comandos en cola"));
                 Log($"DROP {dropped.Action} ({dropped.Id}): cola llena");
             }
 
@@ -142,7 +194,8 @@ namespace StreamTok.GtaV
             for (int i = 0; i < MaxCommandsPerTick && _client.Commands.TryDequeue(out cmd); i++)
             {
                 string error = Run(cmd.Action, cmd.Params, cmd.NameTag, cmd.Notify);
-                _client.Send(Protocol.BuildAck(cmd.Id, error));
+                // Los comandos del webhook no tienen a quién responder: sin ack (no engordar la cola del WS).
+                if (cmd.Id == null || !cmd.Id.StartsWith("hook-")) _client.Send(Protocol.BuildAck(cmd.Id, error));
                 Log(error == null ? $"OK   {cmd.Action} ({cmd.Id})" : $"FAIL {cmd.Action} ({cmd.Id}): {error}");
                 if (cmd.Id != null && cmd.Id.StartsWith("stress-")) CountStress(error == null);
             }
@@ -156,6 +209,7 @@ namespace StreamTok.GtaV
             Safe("Chiliad", _services.Chiliad.Update);
             Safe("Pelea", _services.Arena.Update);
             Safe("Parkour", _services.Parkour.Update);
+            Safe("Carrera", _services.Race.Update);
             if (_menu != null) Safe("Menú", _menu.Draw);
         }
 
@@ -208,11 +262,13 @@ namespace StreamTok.GtaV
         private void OnAborted(object sender, EventArgs e)
         {
             _client.Dispose();
+            _webhook?.Dispose();
             _services.Scheduler.Clear();
             _services.Characters.Clear();
             _services.Chiliad.ClearState(); // blip, radar y jugador descongelado
             _services.Arena.Clear();
             _services.Parkour.Stop(quiet: true);
+            _services.Race.Clear();
             _services.Effects.EndAll();
             PlayerTransform.RestoreNow(); // no habrá más frames: sin pasos
 

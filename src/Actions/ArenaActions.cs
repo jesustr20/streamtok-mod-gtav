@@ -57,7 +57,7 @@ namespace StreamTok.GtaV.Actions
                 ctx => ctx.Arena.GivePower(ctx.NameTag, ctx.Enum("power"), ctx.Int("seconds")));
 
             yield return new ActionDef("arena_bots", "Pelea: agregar bots", false,
-                new[] { ParamDef.Int("count", 3, 1, 10) },
+                new[] { ParamDef.Int("count", 3, 1, ParamDef.NoLimit) },
                 ctx => ctx.Arena.AddBots(ctx.Int("count")));
         }
     }

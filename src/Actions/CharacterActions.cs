@@ -28,7 +28,7 @@ namespace StreamTok.GtaV.Actions
                 {
                     ParamDef.Enum("character", ids[0], options),
                     ParamDef.Enum("side", "enemy", "enemy", "ally"),
-                    ParamDef.Int("count", 1, 1, 5),
+                    ParamDef.Int("count", 1, 1, ParamDef.NoLimit),
                 },
                 ctx => Spawn(ctx, characters, ctx.Enum("character")));
 
@@ -41,7 +41,7 @@ namespace StreamTok.GtaV.Actions
                     new[]
                     {
                         ParamDef.Enum("side", "enemy", "enemy", "ally"),
-                        ParamDef.Int("count", 1, 1, 5),
+                        ParamDef.Int("count", 1, 1, ParamDef.NoLimit),
                     },
                     ctx => Spawn(ctx, characters, id))
                 {

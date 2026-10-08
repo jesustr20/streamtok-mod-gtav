@@ -17,7 +17,7 @@ namespace StreamTok.GtaV.Actions
                 GiveWeapon);
 
             yield return new ActionDef("weapon_random", "Armas aleatorias", false,
-                new[] { ParamDef.Int("count", 1, 1, 10) },
+                new[] { ParamDef.Int("count", 1, 1, ParamDef.NoLimit) },
                 RandomWeapons);
 
             yield return new ActionDef("remove_weapons", "Quitar armas", false, null,

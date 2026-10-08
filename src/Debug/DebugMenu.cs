@@ -70,8 +70,8 @@ namespace StreamTok.GtaV.Debug
         /// showParkour: la sección Parkour — apagada por defecto, el modo aún no está terminado
         ///            (ini: [Menu] ShowParkour=true).
         /// </summary>
-        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour,
-            bool showTests, bool showParkour, Action<int> stressTest = null)
+        public DebugMenu(IReadOnlyList<ActionDef> actions, Action<ActionDef, Dictionary<string, object>> run, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour, RaceMode race,
+            bool showTests, bool showParkour, bool showRace, Action<int> stressTest = null)
         {
             _run = run;
 
@@ -80,7 +80,7 @@ namespace StreamTok.GtaV.Debug
                 _values[a.Id] = a.Params.ToDictionary(p => p.Name, p => p.Default);
             }
 
-            Item root = BuildRoot(actions, chiliad, arena, parkour, showTests, showParkour);
+            Item root = BuildRoot(actions, chiliad, arena, parkour, race, showTests, showParkour, showRace);
             if (showTests && stressTest != null)
             {
                 // Prueba de estrés: muchas acciones al azar seguidas, para ver si el juego aguanta.
@@ -97,7 +97,7 @@ namespace StreamTok.GtaV.Debug
 
         // ================================================================ estructura
 
-        private static Item BuildRoot(IReadOnlyList<ActionDef> actions, ChiliadMode mode, ArenaMode arenaMode, ParkourMode parkourMode, bool showTests, bool showParkour)
+        private static Item BuildRoot(IReadOnlyList<ActionDef> actions, ChiliadMode mode, ArenaMode arenaMode, ParkourMode parkourMode, RaceMode raceMode, bool showTests, bool showParkour, bool showRace)
         {
             var byId = actions.ToDictionary(a => a.Id, StringComparer.OrdinalIgnoreCase);
 
@@ -183,6 +183,50 @@ namespace StreamTok.GtaV.Debug
                     }
                 }
                 root.Children.Add(parkour);
+            }
+
+            // --- Carrera (en desarrollo): lobby, salida, pista y pruebas.
+            if (showRace && byId.TryGetValue("race_open", out ActionDef rOpen) && byId.TryGetValue("race_stop", out ActionDef rStop))
+            {
+                Func<bool> raceActive = () => raceMode.IsActive;
+                var race = new Item { Title = "Carrera", IsOn = raceActive };
+                race.Children.Add(new Item { Action = rOpen, OffAction = rStop, IsOn = raceActive });
+                foreach (string id in new[] { "race_start", "race_bots" })
+                {
+                    if (byId.TryGetValue(id, out ActionDef a))
+                    {
+                        race.Children.Add(new Item { Action = a, NeedsOn = raceActive });
+                    }
+                }
+                AddSwitch(race, byId, "race_player", () => raceMode.PlayerRacesOn, null);
+                AddSwitch(race, byId, "race_camera", () => raceMode.AutoCameraOn, null);
+
+                // Pruebas de viewers (lo normal es que lleguen por la app o el webhook).
+                var tests = new Item { Title = "Pruebas de viewers" };
+                foreach (string id in new[] { "race_join", "race_boost", "race_rose" })
+                {
+                    if (byId.TryGetValue(id, out ActionDef a))
+                    {
+                        tests.Children.Add(new Item { Action = a, NeedsOn = raceActive });
+                    }
+                }
+                race.Children.Add(tests);
+
+                // Herramientas del creador: solo con [Race] AllowRecording=true.
+                if (byId.ContainsKey("race_record_start"))
+                {
+                    var tools = new Item { Title = "Herramientas de pistas" };
+                    foreach (string id in new[] { "race_record_start", "race_record_stop", "race_import_start", "race_import_stop" })
+                    {
+                        if (byId.TryGetValue(id, out ActionDef a))
+                        {
+                            tools.Children.Add(new Item { Action = a });
+                        }
+                    }
+                    AddSwitch(tools, byId, "race_show_track", () => raceMode.ShowTrackOn, null);
+                    race.Children.Add(tools);
+                }
+                root.Children.Add(race);
             }
 
             return root;

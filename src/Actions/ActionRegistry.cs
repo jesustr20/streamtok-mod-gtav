@@ -29,7 +29,7 @@ namespace StreamTok.GtaV.Actions
         public ActionDef Find(string id) =>
             id != null && _byId.TryGetValue(id, out ActionDef a) ? a : null;
 
-        public static ActionRegistry CreateDefault(IReadOnlyList<CharacterDef> characters, string[] arenaCharacterIds, string[] parkourCourses) => new ActionRegistry(
+        public static ActionRegistry CreateDefault(IReadOnlyList<CharacterDef> characters, string[] arenaCharacterIds, string[] parkourCourses, string[] raceTracks, bool raceAllowRecording) => new ActionRegistry(
             NpcActions.All()
                 .Concat(VehicleActions.All())
                 .Concat(PlayerActions.All())
@@ -39,6 +39,7 @@ namespace StreamTok.GtaV.Actions
                 .Concat(ChiliadActions.All())
                 .Concat(ArenaActions.All(arenaCharacterIds))
                 .Concat(ParkourActions.All(parkourCourses))
+                .Concat(RaceActions.All(raceTracks, raceAllowRecording))
                 .Concat(CharacterActions.All(characters)));
     }
 }

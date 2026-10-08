@@ -67,9 +67,14 @@ namespace StreamTok.GtaV.Actions
         /// <summary>
         /// Modelos por tipo de vehículo. NO es una lista escrita a mano: se arma una sola vez
         /// recorriendo TODO el enum GTA.VehicleHash (todos los vehículos que el juego/SHVDN
-        /// conoce, incluyendo los de los DLC) y clasificando cada uno con Model.IsCar / IsBike /
-        /// IsBoat / IsPlane / IsHelicopter — son datos del propio juego, no inventados aquí.
-        /// Así crece sola con cada actualización de GTA V o de SHVDN, sin tocar este archivo.
+        /// conoce, incluyendo los de los DLC) y clasificando cada uno según lo que el propio
+        /// juego dice que es (son datos del motor, no inventados aquí). Así crece sola con cada
+        /// actualización de GTA V o de SHVDN, sin tocar este archivo.
+        ///
+        /// GTA V distingue IsBike (motos) de IsBicycle (bicis: BMX, Cruiser, Fixter…) como cosas
+        /// separadas — igual con IsCar vs IsQuadBike/IsAmphibiousCar y IsBoat vs IsJetSki. Si solo
+        /// se chequean Car/Bike/Boat/Plane/Helicopter, las bicis, cuatrimotos, jetskis y autos
+        /// anfibios caen todos en el "continue" y desaparecen del catálogo sin avisar.
         /// </summary>
         public static Dictionary<string, string[]> Vehicles
         {

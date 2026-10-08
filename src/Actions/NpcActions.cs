@@ -17,7 +17,7 @@ namespace StreamTok.GtaV.Actions
                 new[]
                 {
                     ParamDef.Enum("animal", "random", animals),
-                    ParamDef.Int("count", 1, 1, 20),
+                    ParamDef.Int("count", 1, 1, ParamDef.NoLimit),
                     ParamDef.Bool("hostile", false),
                 },
                 SpawnAnimal);
@@ -25,7 +25,7 @@ namespace StreamTok.GtaV.Actions
             yield return new ActionDef("spawn_attackers", "Spawn de atacantes", true,
                 new[]
                 {
-                    ParamDef.Int("count", 3, 1, 50),
+                    ParamDef.Int("count", 3, 1, ParamDef.NoLimit),
                     ParamDef.Enum("weapon", "pistol", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "none", "random"),
                     ParamDef.Enum("model", "normal", "normal", "random", "chimp", "alien"),
                 },
@@ -34,7 +34,7 @@ namespace StreamTok.GtaV.Actions
             yield return new ActionDef("spawn_bikers", "Motorizados", true,
                 new[]
                 {
-                    ParamDef.Int("count", 2, 1, 10),
+                    ParamDef.Int("count", 2, 1, ParamDef.NoLimit),
                     ParamDef.Enum("faction", "bandits", "bandits", "police"),
                 },
                 SpawnBikers);
@@ -63,7 +63,7 @@ namespace StreamTok.GtaV.Actions
                 new[]
                 {
                     ParamDef.Enum("type", "human", "human", "dog", "random"),
-                    ParamDef.Int("count", 1, 1, 5),
+                    ParamDef.Int("count", 1, 1, ParamDef.NoLimit),
                     ParamDef.Enum("weapon", "pistol", "pistol", "smg", "rifle", "mg", "none"),
                 },
                 SpawnCompanion);
@@ -72,7 +72,7 @@ namespace StreamTok.GtaV.Actions
                 ctx => ctx.Tracker.RemoveKind(EntityTracker.KindCompanion));
 
             yield return new ActionDef("spawn_crazy_npc", "NPC furioso", true,
-                new[] { ParamDef.Int("count", 1, 1, 10) },
+                new[] { ParamDef.Int("count", 1, 1, ParamDef.NoLimit) },
                 SpawnCrazyNpc);
         }
 
