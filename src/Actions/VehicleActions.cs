@@ -77,7 +77,8 @@ namespace StreamTok.GtaV.Actions
                 ctx =>
                 {
                     Vehicle v = Current();
-                    float speed = Math.Min(v.Speed + ctx.Int("power"), 120f);
+                    float speed = v.Speed + ctx.Int("power");
+                    Function.Call(Hash.SET_ENTITY_MAX_SPEED, v, Math.Max(speed + 50f, 500f)); // quita el tope de velocidad del juego
                     Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, v, speed);
                 });
         }
@@ -169,6 +170,48 @@ namespace StreamTok.GtaV.Actions
                 }
 
                 KeepMoving(ctx, vehicle, velocity);
+            }
+            else if (drive && player.HeightAboveGround > 3f)
+            {
+                // El jugador está en el aire (lo mandaron a volar, paracaídas, caída libre): el vehículo
+                // aparece AHÍ MISMO, con su misma velocidad, y no se baja al suelo.
+                Vehicle current = player.IsInVehicle() ? player.CurrentVehicle : null;
+                Vector3 position = current != null ? current.Position : player.Position + new Vector3(0f, 0f, 0.5f);
+                Vector3 velocity = current != null ? current.Velocity : player.Velocity;
+                float heading = current != null ? current.Heading : player.Heading;
+
+                if (current != null)
+                {
+                    current.IsCollisionEnabled = false; // el nuevo aparece justo en su lugar sin chocar
+                }
+
+                vehicle = Spawner.SpawnVehicle(model, position, heading, placeOnGround: false);
+                player.SetIntoVehicle(vehicle, VehicleSeat.Driver);
+                Function.Call(Hash.SET_VEHICLE_ENGINE_ON, vehicle, true, true, false);
+                vehicle.Velocity = velocity;
+
+                if (vehicle.Model.IsPlane)
+                {
+                    Function.Call(Hash.CONTROL_LANDING_GEAR, vehicle, 3);
+                    Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, vehicle, Math.Max(40f, velocity.Length()));
+                }
+                else if (vehicle.Model.IsHelicopter)
+                {
+                    Function.Call(Hash.SET_HELI_BLADES_FULL_SPEED, vehicle);
+                }
+
+                if (current != null)
+                {
+                    EntityTracker.SafeDelete(current);
+                }
+                if (toDelete != null && toDelete != current)
+                {
+                    EntityTracker.SafeDelete(toDelete);
+                }
+                if (!ctx.Effects.IsActive("player_invisible"))
+                {
+                    player.IsVisible = true;
+                }
             }
             else
             {
