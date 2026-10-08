@@ -61,7 +61,16 @@ namespace StreamTok.CatalogExport
             var arena = new ArenaMode(tracker, characterManager, characters, scheduler, rng, logger, dataDir,
                 ArenaMode.DefaultHealthTiers);
 
-            ActionRegistry registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses);
+            // RaceMode no se crea acá: su constructor arma textos de pantalla (GTA.UI.TextElement) y eso
+            // necesita el juego corriendo. En el mod real la lista de pistas sale de la carpeta
+            // StreamTok.Race\\tracks; para el catálogo publicado se usan las pistas que vienen de ejemplo.
+            string[] raceTracks =
+            {
+                "beachfront-runner", "criminal-records", "dorset-drive",
+                "downtown-underground", "the-los-santos-triangle", "vespucci-dreams",
+            };
+
+            ActionRegistry registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses, raceTracks, raceAllowRecording: false);
 
             string json = Protocol.BuildHello(version, registry.All);
 
