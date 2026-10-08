@@ -36,6 +36,14 @@ namespace StreamTok.GtaV.Entities
         /// </summary>
         public const float HeadTagHeight = 0.75f;
 
+        /// <summary>
+        /// En transmisión (modo Carrera) los nombres se miden desde la cámara y no desde el personaje:
+        /// el personaje está oculto junto al líder y los demás autos quedarían "lejos" aunque la cámara los filme de cerca.
+        /// </summary>
+        public bool TagsFromCamera;
+
+        private const float CameraTagDistance = 140f;
+
         private readonly List<Tracked> _items = new List<Tracked>();
         private readonly int _maxPeds;
         private readonly int _maxVehicles;
@@ -154,7 +162,10 @@ namespace StreamTok.GtaV.Entities
         /// <summary>Llamar cada frame: limpia y dibuja los nombres.</summary>
         public void Update()
         {
-            Vector3 origin = GTA.Game.Player.Character.Position;
+            Vector3 origin = TagsFromCamera
+                ? Function.Call<Vector3>(Hash.GET_FINAL_RENDERED_CAM_COORD)
+                : GTA.Game.Player.Character.Position;
+            float range = TagsFromCamera ? CameraTagDistance : TagDistance;
 
             for (int i = _items.Count - 1; i >= 0; i--)
             {
@@ -176,7 +187,7 @@ namespace StreamTok.GtaV.Entities
                     continue;
                 }
 
-                if (t.Tag == null || e.Position.DistanceTo(origin) > TagDistance)
+                if (t.Tag == null || e.Position.DistanceTo(origin) > range)
                 {
                     continue;
                 }

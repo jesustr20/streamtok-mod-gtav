@@ -116,7 +116,7 @@ namespace StreamTok.GtaV.Actions
             yield return new ActionDef("road_accident", "Accidente en el camino", true,
                 new[]
                 {
-                    ParamDef.Int("cars", 3, 1, 6),
+                    ParamDef.Int("cars", 3, 1, ParamDef.NoLimit),
                     ParamDef.Int("distance", 60, 25, 150),
                     ParamDef.Bool("fire", true),
                 },

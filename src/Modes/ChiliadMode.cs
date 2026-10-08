@@ -211,6 +211,12 @@ namespace StreamTok.GtaV.Modes
             LoadTaxiStop();
         }
 
+        /// <summary>
+        /// true = al morir se deja que el juego te reaparezca como siempre (hospital más cercano) y la partida sigue.
+        /// false = el mod te devuelve al último punto seguro de la montaña. ini: [Chiliad] RespawnLikeGame.
+        /// </summary>
+        public bool RespawnLikeGame = true;
+
         public bool IsActive => _active;
         public bool GpsOn => _active && _gpsOn && _gpsOffUntil == 0; // OFF también durante un apagón temporal
         public bool TimerOn => _active && _timerOn;
@@ -472,6 +478,11 @@ namespace StreamTok.GtaV.Modes
             // --- Muerte o arresto: el reloj se pausa; al volver, reaparece donde iba.
             if (down)
             {
+                if (!_wasDown)
+                {
+                    Vector3 dp = p.Position;
+                    _log($"Chiliad: murió/cayó en ({dp.X:0.0}, {dp.Y:0.0}, {dp.Z:0.0}); reaparecer {(_respawnOn ? "ON" : "OFF")}.");
+                }
                 _wasDown = true;
                 DrawHud(now);
                 return;
@@ -479,7 +490,15 @@ namespace StreamTok.GtaV.Modes
             if (_wasDown)
             {
                 _wasDown = false;
-                if (_respawnOn)
+                if (_respawnOn && RespawnLikeGame)
+                {
+                    // El juego ya te reaparece donde corresponde: el mod no mueve nada y la partida sigue.
+                    Vector3 here = Player.Position;
+                    _log($"Chiliad: reaparece como en el juego en ({here.X:0.0}, {here.Y:0.0}, {here.Z:0.0}).");
+                    ResetSafePoints(here, Player.Heading);
+                    ShowBig("¡SIGUE SUBIENDO!", Color.White, 2000);
+                }
+                else if (_respawnOn)
                 {
                     RespawnAtSafePoint();
                 }
@@ -597,19 +616,25 @@ namespace StreamTok.GtaV.Modes
             {
                 _bestMs = _elapsedMs;
             }
-            ShowBig($"¡CIMA! {FormatTime(_elapsedMs)}", Color.Gold, CelebrationMs);
+            if (!_repeat)
+            {
+                ShowBig($"¡CIMA! {FormatTime(_elapsedMs)}", Color.Gold, CelebrationMs);
+            }
             GTA.UI.Notification.Show($"~y~Monte Chiliad~s~ conquistado en ~g~{FormatTime(_elapsedMs)}~s~ (intento {_attempt})"
-                + (_repeat ? " · nueva vuelta en unos segundos" : ""));
+                + (_repeat ? " · de vuelta a la salida" : ""));
             _log($"Chiliad: cima #{_summits} en {FormatTime(_elapsedMs)}, intento {_attempt}.");
-
-            _celebrateUntil = now + CelebrationMs;
-            _nextFirework = now;
 
             if (_repeat)
             {
-                _restartAt = now + RestartDelayMs;
+                // Al llegar el contador a 0 se vuelve a la salida de inmediato (sin pausa en la cima).
+                string summitMsg = $"¡CIMA! {FormatTime(_elapsedMs)}";
+                StartNewRound();
+                ShowBig(summitMsg, Color.Gold, 3500);
                 return;
             }
+
+            _celebrateUntil = now + CelebrationMs;
+            _nextFirework = now;
 
             // Sin repetir: el modo termina aquí.
             _active = false;
@@ -839,6 +864,9 @@ namespace StreamTok.GtaV.Modes
             float heading = _safeHeadingPrevious;
             int model = _safeModelPrevious;
             ResetSafePoints(pos, heading);
+            Vector3 now0 = Player.Position;
+            _log($"Chiliad: reaparece en el punto seguro ({pos.X:0.0}, {pos.Y:0.0}, {pos.Z:0.0}), modelo {model}; " +
+                 $"el jugador estaba en ({now0.X:0.0}, {now0.Y:0.0}, {now0.Z:0.0}).");
 
             Action after = null;
             if (model != 0)

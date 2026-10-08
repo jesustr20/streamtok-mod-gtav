@@ -21,6 +21,7 @@ namespace StreamTok.GtaV.Actions
         public const string Chiliad = "chiliad";
         public const string Arena = "arena";
         public const string Parkour = "parkour";
+        public const string Race = "race";
         public const string Other = "other";
 
         private static readonly Dictionary<string, string[]> Meta = new Dictionary<string, string[]>
@@ -101,6 +102,20 @@ namespace StreamTok.GtaV.Actions
             ["arena_player"]        = new[] { Arena, "arena_player", "El jugador entra a pelear (ON) o queda libre (OFF); al morir queda fuera" },
             ["arena_set_place"]     = new[] { Arena, "arena_place", "Guarda donde está el jugador como lugar de la arena (\"marked\")" },
             ["arena_bots"]          = new[] { Arena, "arena_bots", "Agrega luchadores de prueba (Bot 1, Bot 2…)" },
+            ["race_open"]           = new[] { Race, "race", "Abre el lobby de la carrera: los viewers se inscriben y, al terminar la cuenta, salen todos juntos" },
+            ["race_start"]          = new[] { Race, "race_start", "Salta lo que queda del lobby y empieza la cuenta regresiva" },
+            ["race_stop"]           = new[] { Race, "race_stop", "Termina la carrera y borra los autos" },
+            ["race_join"]           = new[] { Race, "race_join", "El viewer se inscribe con su auto (una sola vez, con el lobby abierto)" },
+            ["race_boost"]          = new[] { Race, "race_boost", "Turbo por unos segundos; varios se acumulan hasta un tope" },
+            ["race_rose"]           = new[] { Race, "race_rose", "Si el viewer no está inscrito lo inscribe; si ya está, lo acelera" },
+            ["race_bots"]           = new[] { Race, "race_bots", "Agrega pilotos de prueba (Bot 1, Bot 2…) con el lobby abierto" },
+            ["race_record_start"]   = new[] { Race, "race_record", "Empieza a grabar la pista mientras el jugador maneja una vuelta" },
+            ["race_record_stop"]    = new[] { Race, "race_record_stop", "Termina la grabación y guarda la pista" },
+            ["race_show_track"]     = new[] { Race, "race_track", "Dibuja la pista en el mundo para comprobarla" },
+            ["race_camera"]         = new[] { Race, "race_camera", "Cámara automática que sigue la carrera (el personaje queda oculto)" },
+            ["race_player"]         = new[] { Race, "race_player", "El streamer corre también, con su propio auto" },
+            ["race_import_start"]   = new[] { Race, "race_import", "Herramienta del creador: la IA maneja los puntos de import y los guarda como pistas" },
+            ["race_import_stop"]    = new[] { Race, "race_import_stop", "Cancela la importación de pistas" },
             ["chiliad_start"]       = new[] { Chiliad, "chiliad", "Reto Monte Chiliad: llegar a la cima antes de que acabe el tiempo" },
             ["chiliad_stop"]        = new[] { Chiliad, "chiliad_stop", "Termina el reto Chiliad" },
             ["chiliad_set_goal"]    = new[] { Chiliad, "goal", "Pone la meta (el círculo) donde está el jugador y la guarda; default = cima" },

@@ -71,27 +71,20 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 - **`notify`**: texto opcional para la notificación en pantalla.
 - **`presets`** (solo `int`): valores sugeridos para mostrar como botones (ej. 5, 10, 15 min); se acepta cualquier número entre `min` y `max`.
 - El mod **recorta todo parámetro a sus límites** y usa el default si llega algo inválido.
-- **Nombres:** todo spawn aparte (vehículo al costado, animales, atacantes) lleva su propio nombre
+- **Nombres:** todo spawn aparte (carro al costado, animales, atacantes) lleva su propio nombre
   fijo mientras exista; nunca se reemplaza. Lo que afecta al personaje sí se reemplaza:
   - **Generar vehículo** (`player_vehicle`) sube al jugador a un vehículo nuevo; si ya va en uno,
     **lo reemplaza** (mismo lugar, rumbo y velocidad) y el nombre pasa a ser el del último viewer.
-    Siempre reemplaza el último que generó, aunque lleguen muchos comandos seguidos.
-  - **Generar vehículo al lado** (`spawn_vehicle`) crea otro vehículo aparte con su propio nombre;
-    cada viewer que lo mande genera uno nuevo y **nunca se borran ni se reemplazan**.
-  - El tipo de vehículo (auto, moto, bici, bote, avión, helicóptero…) se sortea solo: estas dos
-    acciones no tienen parámetros.
-  - **No hay límites de spawn**: el mod acepta todo lo que se pida, aunque eso haga lag o crashee
-    el juego (a propósito, para el "rip pc").
+  - **Generar carro al lado** (`spawn_vehicle`) crea otro vehículo aparte con su propio nombre;
+    cada viewer que lo mande genera uno nuevo.
   - Los efectos del personaje (inmortal, invisible, visión nocturna, súper salto) **no tienen
     duración**: se activan o desactivan con `enabled`. El nombre va encima del personaje y el
     último viewer que repite el mismo efecto reemplaza al anterior.
 
 ## Probar sin StreamTok
 
-- **Menú F7 dentro del juego** (siempre disponible). Por defecto muestra solo los modos que se
-  encienden desde el juego: *Monte Chiliad* y *Pelea de viewers*. Con `MenuEnabled=true` en el `.ini`
-  agrega *Juego normal* (acciones sueltas por categoría) y la *Prueba de estrés*; con `ShowParkour=true`
-  agrega *Parkour* (modo aún sin terminar). Usa el mismo camino de ejecución que los comandos reales.
+- **Menú F7 dentro del juego** (apagado por defecto: activarlo con `MenuEnabled=true` en el `.ini`), por secciones: *Juego normal* (por categoría), *Monte Chiliad*,
+  *Pelea de viewers* y *Parkour*. Usa el mismo camino de ejecución que los comandos reales.
   - Arriba/Abajo elegir · Enter/Derecha entrar o ejecutar · Izquierda/Retroceso volver · F7 cerrar.
   - En los parámetros: Izq/Der cambia el valor (salta entre los sugeridos); **Shift** = de 1 en 1 (personalizado) o x10.
   - Los ajustes elegidos se recuerdan hasta recargar el mod (Insert) o cerrar el juego.
@@ -110,12 +103,13 @@ Todos los mensajes son `{ "channel": "...", "payload": { ... } }`.
 ```ini
 [Connection]
 Url=ws://localhost:7331
+[Limits]
+MaxSpawnedPeds=100
+MaxSpawnedVehicles=20
 [Arena]
 HealthTiers=1:20,10:25,100:30,500:40,1000:50   ; desde X monedas : vida por moneda
-[Menu]
-ShowParkour=false   ; true = muestra el modo Parkour en el menú F7 (aún sin terminar)
 [Debug]
-MenuEnabled=false   ; true = agrega al menú F7 la lista de acciones y la prueba de estrés (apagado por defecto para streamers)
+MenuEnabled=false   ; true = menú de pruebas F7 (apagado por defecto para streamers)
 TestNameTag=Viewer de prueba
 ```
 

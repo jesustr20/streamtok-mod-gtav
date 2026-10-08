@@ -39,6 +39,9 @@ namespace StreamTok.GtaV.Actions
         /// </summary>
         public int[] Presets { get; private set; }
 
+        /// <summary>Tope "sin límite" para cantidades (spawns): tan alto que nunca se alcanza.</summary>
+        public const int NoLimit = 1000000;
+
         public static ParamDef Int(string name, int def, int min, int max, params int[] presets) =>
             new ParamDef { Name = name, Type = "int", Default = def, Min = min, Max = max, Presets = presets.Length > 0 ? presets : null };
 
@@ -50,8 +53,8 @@ namespace StreamTok.GtaV.Actions
 
         /// <summary>
         /// Convierte el valor recibido al tipo del parámetro y lo recorta a sus límites.
-        /// Cualquier valor ausente o inválido cae al default: una mala configuración
-        /// en StreamTok nunca puede pedirle al juego 5000 atacantes.
+        /// Cualquier valor ausente o inválido cae al default: los spawns no tienen
+        /// tope (NoLimit).
         /// </summary>
         public object Normalize(object raw)
         {
@@ -131,8 +134,9 @@ namespace StreamTok.GtaV.Actions
     /// <summary>Servicios compartidos por todas las acciones.</summary>
     internal sealed class ActionServices
     {
-        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour, Random rng)
+        public ActionServices(EntityTracker tracker, PlayerEffects effects, FrameScheduler scheduler, CharacterManager characters, ChiliadMode chiliad, ArenaMode arena, ParkourMode parkour, RaceMode race, Random rng)
         {
+            Race = race;
             Parkour = parkour;
             Arena = arena;
             Characters = characters;
@@ -150,6 +154,7 @@ namespace StreamTok.GtaV.Actions
         public ChiliadMode Chiliad { get; }
         public ArenaMode Arena { get; }
         public ParkourMode Parkour { get; }
+        public RaceMode Race { get; }
         public Random Rng { get; }
     }
 
@@ -176,6 +181,7 @@ namespace StreamTok.GtaV.Actions
         public ChiliadMode Chiliad => _services.Chiliad;
         public ArenaMode Arena => _services.Arena;
         public ParkourMode Parkour => _services.Parkour;
+        public RaceMode Race => _services.Race;
         public Random Rng => _services.Rng;
 
         public int Int(string name) => (int)_values[name];
