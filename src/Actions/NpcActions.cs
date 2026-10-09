@@ -320,13 +320,19 @@ namespace StreamTok.GtaV.Actions
 
                 Ped ped = Spawner.SpawnPed(modelName, Spawner.NearPlayer(ctx.Rng, 12f, 25f));
                 ped.RelationshipGroup = ctx.Tracker.HostileGroup;
+                if (model == "alien")
+                {
+                    // Este modelo es un actor con traje: el juego le pone ropa al azar y a veces sale sin el traje de alien.
+                    // La variación por defecto es la del alien completo.
+                    Function.Call(Hash.SET_PED_DEFAULT_COMPONENT_VARIATION, ped.Handle);
+                }
 
                 // El chimpancé SÍ usa arma: armado deja de comportarse como animal asustadizo. Sin arma
                 // elegida lleva un martillo.
                 bool chimp = modelName == "a_c_chimp" || modelName == "a_c_chimp_02" || modelName == "a_c_rhesus";
-                if (weapon != "none" || chimp)
+                if (weapon != "none" || chimp || model == "alien")
                 {
-                    string w = weapon == "random" ? ctx.Pick(attackerWeapons) : (weapon == "none" ? "hammer" : weapon);
+                    string w = weapon == "random" ? ctx.Pick(attackerWeapons) : (weapon == "none" ? (model == "alien" ? "ray_pistol" : "hammer") : weapon);
                     if (model == "alien" && !w.StartsWith("ray_"))
                     {
                         // Los aliens atacan con armas láser: la pesada para "mg", la carabina para fusiles, la pistola para el resto.
