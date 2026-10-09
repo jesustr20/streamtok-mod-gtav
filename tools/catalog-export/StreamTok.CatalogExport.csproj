@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <!-- Mismas referencias que el mod: el código de src/ las necesita para compilar -->
-    <PackageReference Include="ScriptHookVDotNet3" Version="3.6.0" ExcludeAssets="runtime" />
+    <PackageReference Include="ScriptHookVDotNet3" Version="3.6.0" />   <!-- sin ExcludeAssets: el .exe necesita ScriptHookVDotNet3.dll al lado para cargar los tipos (WeaponHash, etc.) -->
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
