@@ -679,8 +679,21 @@ namespace StreamTok.GtaV.Modes
             if (float.IsNaN(_goalGround))
             {
                 // Suelo real bajo la meta (la cima es una loma): se calcula una vez ya cargada la zona.
-                float g = World.GetGroundHeight(_goal + new Vector3(0f, 0f, 5f));
-                _goalGround = g > 0f ? g : _goal.Z - 1f;
+                // Se busca HACIA ABAJO desde un poco bajo la altura de la meta: así se encuentra el suelo donde
+                // para el jugador y no la plataforma de madera que hay encima.
+                var found = new OutputArgument();
+                bool hit = Function.Call<bool>(Hash.GET_GROUND_Z_FOR_3D_COORD, _goal.X, _goal.Y, _goal.Z - 1.5f, found, false, false);
+                float g = hit ? found.GetResult<float>() : 0f;
+                if (g > 0f && Math.Abs(g - _goal.Z) < 10f)
+                {
+                    _goalGround = g;
+                    _goal.Z = g; // la altura de la meta pasa a ser la del suelo (la barra "Altura x / y" llega a 100 %)
+                }
+                else
+                {
+                    float top = World.GetGroundHeight(_goal + new Vector3(0f, 0f, 5f));
+                    _goalGround = top > 0f ? top : _goal.Z - 1f;
+                }
             }
 
             int pulse = (int)(25 * (1 + Math.Sin(GTA.Game.GameTime / 250.0))); // 0-50

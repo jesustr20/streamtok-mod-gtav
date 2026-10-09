@@ -26,7 +26,7 @@ namespace StreamTok.GtaV.Actions
                 new[]
                 {
                     ParamDef.Int("count", 3, 1, ParamDef.NoLimit),
-                    ParamDef.Enum("weapon", "pistol", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "hammer", "none", "random"),
+                    ParamDef.Enum("weapon", "pistol", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "hammer", "ray_pistol", "ray_carbine", "ray_minigun", "none", "random"),
                     ParamDef.Enum("model", "normal", "normal", "random", "chimp", "chimp2", "rhesus", "alien"),
                 },
                 SpawnAttackers);
@@ -43,7 +43,7 @@ namespace StreamTok.GtaV.Actions
                 ctx => ctx.Tracker.RemoveKind(EntityTracker.KindAttacker));
 
             yield return new ActionDef("attackers_arm", "Equipar armas en atacantes", false,
-                new[] { ParamDef.Enum("weapon", "rifle", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "hammer", "random") },
+                new[] { ParamDef.Enum("weapon", "rifle", "pistol", "smg", "rifle", "mg", "rpg", "bat", "knife", "hammer", "ray_pistol", "ray_carbine", "ray_minigun", "random") },
                 ArmAttackers);
 
             yield return new ActionDef("attackers_heal", "Curar atacantes", false, null,
@@ -327,6 +327,11 @@ namespace StreamTok.GtaV.Actions
                 if (weapon != "none" || chimp)
                 {
                     string w = weapon == "random" ? ctx.Pick(attackerWeapons) : (weapon == "none" ? "hammer" : weapon);
+                    if (model == "alien" && !w.StartsWith("ray_"))
+                    {
+                        // Los aliens atacan con armas láser: la pesada para "mg", la carabina para fusiles, la pistola para el resto.
+                        w = w == "mg" ? "ray_minigun" : (w == "rifle" || w == "smg") ? "ray_carbine" : "ray_pistol";
+                    }
                     ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
                 }
 

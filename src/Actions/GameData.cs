@@ -49,6 +49,11 @@ namespace StreamTok.GtaV.Actions
             ["bat"] = WeaponHash.Bat,
             ["knife"] = WeaponHash.Knife,
             ["hammer"] = WeaponHash.Hammer,
+            // Armas láser (Up-n-Atomizer, Unholy Hellbringer, Widowmaker): se usan por hash por si el
+            // paquete de SHVDN no las trae en su lista.
+            ["ray_pistol"] = (WeaponHash)0xAF3696A1,
+            ["ray_carbine"] = (WeaponHash)0x476BF155,
+            ["ray_minigun"] = (WeaponHash)0xB62D1F67,
         };
 
         public static readonly Dictionary<string, string> Weather = new Dictionary<string, string>
