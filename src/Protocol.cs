@@ -138,7 +138,8 @@ namespace StreamTok.GtaV
             if (p.Min.HasValue) d["min"] = p.Min.Value;
             if (p.Max.HasValue) d["max"] = p.Max.Value;
             if (p.Options != null) d["options"] = p.Options;
-            if (p.Presets != null) d["presets"] = p.Presets;
+            // Los "presets" (atajos) ya no se publican a la app: con ellos mostraba una lista fija y no dejaba escribir cualquier valor.
+            // Solo los usa el menú F7 del juego para saltar entre valores.
             return d;
         }
 

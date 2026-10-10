@@ -68,12 +68,12 @@ namespace StreamTok.GtaV.Actions
         // ------------------------------------------------------ nitro para todos
 
         private static readonly Dictionary<int, float> NitroTargets = new Dictionary<int, float>();
+        private static readonly Dictionary<int, float> NitroBase = new Dictionary<int, float>(); // velocidad de cada auto antes del primer nitro
 
         private static void VehiclesNitro(ActionContext ctx)
         {
             float power = ctx.Int("power");
             Ped player = GTA.Game.Player.Character;
-            int frame = 0;
 
             foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 250f))
             {
@@ -81,7 +81,14 @@ namespace StreamTok.GtaV.Actions
                 {
                     continue;
                 }
-                float target = v.Speed + power;
+                // La velocidad objetivo es SIEMPRE la de antes del nitro + el power que se pide (no se acumula con un nitro anterior).
+                float baseSpeed;
+                if (!NitroBase.TryGetValue(v.Handle, out baseSpeed))
+                {
+                    baseSpeed = v.Speed;
+                    NitroBase[v.Handle] = baseSpeed;
+                }
+                float target = baseSpeed + power;
                 NitroTargets[v.Handle] = target;
                 Function.Call(Hash.SET_ENTITY_MAX_SPEED, v, target + 100f); // sin el tope de velocidad del juego
                 Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, v, target);
@@ -89,15 +96,12 @@ namespace StreamTok.GtaV.Actions
 
             ctx.Scheduler.RepeatFor("vehicles_nitro", Math.Max(1, ctx.Int("seconds")), () =>
             {
-                if (++frame % 2 != 0)
-                {
-                    return;
-                }
                 foreach (KeyValuePair<int, float> kv in NitroTargets)
                 {
                     if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, kv.Key)) continue;
-                    // Se sostiene la velocidad aunque la rueda pierda el suelo (así salen volando en las rampas y baches).
-                    if (Function.Call<float>(Hash.GET_ENTITY_SPEED, kv.Key) < kv.Value * 0.9f)
+                    // Se sostiene la velocidad pedida aunque la rueda pierda el suelo (así salen volando en las rampas y baches).
+                    float speed = Function.Call<float>(Hash.GET_ENTITY_SPEED, kv.Key);
+                    if (Math.Abs(speed - kv.Value) > kv.Value * 0.03f)
                     {
                         Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, kv.Key, kv.Value);
                     }
@@ -105,14 +109,22 @@ namespace StreamTok.GtaV.Actions
             },
             onEnd: () =>
             {
+                int playerVeh = GTA.Game.Player.Character.CurrentVehicle != null ? GTA.Game.Player.Character.CurrentVehicle.Handle : 0;
                 foreach (int handle in NitroTargets.Keys)
                 {
-                    if (Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
+                    if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle))
                     {
-                        Function.Call(Hash.SET_ENTITY_MAX_SPEED, handle, 10000f);
+                        continue;
+                    }
+                    Function.Call(Hash.SET_ENTITY_MAX_SPEED, handle, 10000f);
+                    // El nitro se acabó: el tráfico frena a velocidad normal (si no, seguiría a toda velocidad).
+                    if (handle != playerVeh && Function.Call<float>(Hash.GET_ENTITY_SPEED, handle) > 15f)
+                    {
+                        Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, handle, 14f);
                     }
                 }
                 NitroTargets.Clear();
+                NitroBase.Clear();
             });
         }
 
@@ -130,13 +142,13 @@ namespace StreamTok.GtaV.Actions
             Ped player = GTA.Game.Player.Character;
 
             // Cada frame par de 6: acelera de verdad a los que ya están en modo rápido (como un "flash").
-            if (_trafficFrame % 6 == 0)
+            if (_trafficFrame % 2 == 0)
             {
                 foreach (int handle in FastVehicles)
                 {
                     if (!Function.Call<bool>(Hash.DOES_ENTITY_EXIST, handle)) continue;
                     int driverHandle = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1, false);
-                    if (driverHandle == 0 || driverHandle == player.Handle) continue;
+                    if (driverHandle == 0) continue; // sin conductor no acelera (el tuyo SÍ cuenta)
                     float speed = Function.Call<float>(Hash.GET_ENTITY_SPEED, handle);
                     if (speed < _fastSpeed * 0.95f)
                     {
@@ -145,20 +157,24 @@ namespace StreamTok.GtaV.Actions
                 }
             }
 
-            if (_trafficFrame % 30 != 0)
+            if (_trafficFrame % 30 != 1)
             {
                 return;
             }
 
-            foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 150f))
+            foreach (Vehicle v in World.GetNearbyVehicles(player.Position, 250f))
             {
                 Ped driver = v.Driver;
-                if (driver == null || !driver.Exists() || driver.IsPlayer || !FastVehicles.Add(v.Handle))
+                if (driver == null || !driver.Exists() || !FastVehicles.Add(v.Handle))
                 {
                     continue;
                 }
 
                 Function.Call(Hash.SET_ENTITY_MAX_SPEED, v, _fastSpeed + 20f);
+                if (driver.IsPlayer)
+                {
+                    continue; // el jugador no recibe tareas de IA: solo se le sostiene la velocidad en el tick
+                }
                 Function.Call(Hash.SET_DRIVER_ABILITY, driver, 1.0f);
                 Function.Call(Hash.SET_DRIVER_AGGRESSIVENESS, driver, 1.0f);
                 Function.Call(Hash.TASK_VEHICLE_DRIVE_WANDER, driver, v, _fastSpeed, FastDrivingStyle);
@@ -174,9 +190,14 @@ namespace StreamTok.GtaV.Actions
                     continue;
                 }
                 int driver = Function.Call<int>(Hash.GET_PED_IN_VEHICLE_SEAT, handle, -1, false);
+                Function.Call(Hash.SET_ENTITY_MAX_SPEED, handle, 10000f);
                 if (driver != 0 && driver != GTA.Game.Player.Character.Handle)
                 {
                     Function.Call(Hash.TASK_VEHICLE_DRIVE_WANDER, driver, handle, 20f, NormalDrivingStyle);
+                    if (Function.Call<float>(Hash.GET_ENTITY_SPEED, handle) > 15f)
+                    {
+                        Function.Call(Hash.SET_VEHICLE_FORWARD_SPEED, handle, 14f); // vuelve a ritmo normal
+                    }
                 }
             }
             FastVehicles.Clear();
@@ -415,13 +436,19 @@ namespace StreamTok.GtaV.Actions
             yield return new ActionDef("traffic_fast", "Vehículos rápidos", false,
                 new[]
                 {
-                    ParamDef.Bool("enabled", true),
                     ParamDef.Int("speed", 80, 5, ParamDef.NoLimit, 40, 80, 120, 200, 300), // m/s (80 ≈ 290 km/h)
+                    ParamDef.Int("seconds", 15, 1, ParamDef.NoLimit, 10, 15, 30, 60),
                 },
                 ctx =>
                 {
                     _fastSpeed = Math.Max(5, ctx.Int("speed"));
-                    SetWorld(ctx, "traffic_fast", null, TrafficFastTick, TrafficFastEnd);
+                    if (!ctx.Scheduler.IsRunning("traffic_fast"))
+                    {
+                        FastVehicles.Clear();
+                        _trafficFrame = 0;
+                    }
+                    // Dura "seconds" y se apaga sola; si llega otra, se suma el tiempo.
+                    ctx.Scheduler.RepeatFor("traffic_fast", Math.Max(1, ctx.Int("seconds")), TrafficFastTick, TrafficFastEnd);
                 });
 
             // Nitro para TODOS los vehículos cercanos (incluido el tuyo): salen disparados y se sostiene la velocidad.

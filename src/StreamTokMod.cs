@@ -196,7 +196,10 @@ namespace StreamTok.GtaV
                 string error = Run(cmd.Action, cmd.Params, cmd.NameTag, cmd.Notify);
                 // Los comandos del webhook no tienen a quién responder: sin ack (no engordar la cola del WS).
                 if (cmd.Id == null || !cmd.Id.StartsWith("hook-")) _client.Send(Protocol.BuildAck(cmd.Id, error));
-                Log(error == null ? $"OK   {cmd.Action} ({cmd.Id})" : $"FAIL {cmd.Action} ({cmd.Id}): {error}");
+                string args = (cmd.Params != null && cmd.Params.Count > 0)
+                    ? " [" + string.Join(", ", cmd.Params.Select(kv => kv.Key + "=" + kv.Value)) + "]"
+                    : ""; // los parámetros que RECIBIÓ el mod, para comprobar qué valor manda la app
+                Log(error == null ? $"OK   {cmd.Action}{args} ({cmd.Id})" : $"FAIL {cmd.Action}{args} ({cmd.Id}): {error}");
                 if (cmd.Id != null && cmd.Id.StartsWith("stress-")) CountStress(error == null);
             }
             if (_stressPending > 0) _stressWorstFrame = Math.Max(_stressWorstFrame, GTA.Game.LastFrameTime);
