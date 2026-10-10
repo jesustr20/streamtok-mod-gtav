@@ -53,7 +53,7 @@ El nombre del viewer va **siempre encima del objeto**:
 | `spawn_ramp` | Generar rampa (delante, mirando hacia donde vas) | `distance` | 🏷️ | 🚧 v0.5 |
 | `ramps_remove` | Remover rampas | — | | 🚧 v0.5 |
 | `vehicles_invisible` | Vehículos invisibles (el jugador siempre se ve) | `enabled` | | 🚧 v0.5 |
-| `traffic_fast` | Vehículos rápidos (todos pasan rapidísimo, como un flash) | `enabled`, `speed` | | ✅ v0.10 |
+| `traffic_fast` | Vehículos rápidos (todos pasan rapidísimo, como un flash) | `speed`, `seconds` | | ✅ v0.10 |
 | `vehicles_nitro` | Vehículos con nitro (todos los cercanos salen disparados y pueden volar) | `power`, `seconds` | | ✅ v0.10 |
 
 ## 3. Jugador
