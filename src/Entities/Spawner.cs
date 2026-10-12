@@ -89,7 +89,9 @@ namespace StreamTok.GtaV.Entities
         public static Vector3 NearPlayer(Random rng, float minDist, float maxDist)
         {
             Vector3 origin = GTA.Game.Player.Character.Position;
-            double angle = rng.NextDouble() * Math.PI * 2;
+            // Aparecen DENTRO del campo de visión de la cámara (±70° de hacia donde mira): así quien dona los ve salir.
+            Vector3 camDir = GTA.GameplayCamera.Direction;
+            double angle = Math.Atan2(camDir.Y, camDir.X) + (rng.NextDouble() - 0.5) * (140.0 * Math.PI / 180.0);
             float dist = minDist + (float)rng.NextDouble() * (maxDist - minDist);
 
             var pos = new Vector3(

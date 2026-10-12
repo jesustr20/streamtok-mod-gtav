@@ -286,35 +286,71 @@ namespace StreamTok.GtaV.Actions
         private const int KeepSpeedFrames = 30;
 
         /// <summary>
-        /// Desmantela el vehículo: puertas, capó y maletero al suelo, todos los vidrios rotos,
-        /// ruedas arrancadas (quedan rodando) y carrocería abollada por todos lados.
+        /// Desmantela CUALQUIER vehículo (auto, moto, bici, lancha, helicóptero, avión, camión…): puertas, capó
+        /// y maletero al suelo, vidrios rotos, ruedas arrancadas, rotores de helicóptero destrozados y carrocería
+        /// abollada por todos lados (en aviones y lanchas también alas, popa y proa).
+        /// Cada paso va protegido: lo que un tipo de vehículo no tiene simplemente se ignora.
         /// </summary>
         private static void Dismantle(Vehicle v)
         {
-            for (int door = 0; door <= 5; door++) // 0-3 puertas, 4 capó, 5 maletero
+            Step(() =>
             {
-                Function.Call(Hash.SET_VEHICLE_DOOR_BROKEN, v, door, false);
-            }
+                for (int door = 0; door <= 7; door++) // puertas, capó, maletero y compuertas (camiones, aviones…)
+                {
+                    Function.Call(Hash.SET_VEHICLE_DOOR_BROKEN, v, door, false);
+                }
+            });
 
-            for (int window = 0; window <= 7; window++)
+            Step(() =>
             {
-                Function.Call(Hash.SMASH_VEHICLE_WINDOW, v, window);
-            }
+                for (int window = 0; window <= 7; window++)
+                {
+                    Function.Call(Hash.SMASH_VEHICLE_WINDOW, v, window);
+                }
+            });
 
-            BreakOffWheels(v);
+            Step(() => BreakOffWheels(v)); // autos, motos, bicis, aviones (tren de aterrizaje)
+
+            // Helicópteros: rotor principal y de cola destruidos.
+            Step(() =>
+            {
+                if (v.Model.IsHelicopter)
+                {
+                    Function.Call(Hash.SET_HELI_MAIN_ROTOR_HEALTH, v, 0f);
+                    Function.Call(Hash.SET_HELI_TAIL_ROTOR_HEALTH, v, 0f);
+                }
+            });
 
             // Abolladuras: puntos relativos al centro del vehículo (adelante, atrás, costados, techo).
-            float[,] hits =
+            // Se escalan al tamaño real del vehículo: así también sirven en lanchas, aviones, camiones y motos.
+            Step(() =>
             {
-                { 0f, 2.2f, 0.2f }, { 0f, -2.2f, 0.2f },
-                { 1.0f, 1.0f, 0.2f }, { -1.0f, 1.0f, 0.2f },
-                { 1.0f, -1.0f, 0.2f }, { -1.0f, -1.0f, 0.2f },
-                { 0f, 0f, 1.0f },
-            };
-            for (int i = 0; i < hits.GetLength(0); i++)
-            {
-                Function.Call(Hash.SET_VEHICLE_DAMAGE, v, hits[i, 0], hits[i, 1], hits[i, 2], 1000f, 1.5f, true);
-            }
+                Vector3 min, max;
+                v.Model.GetDimensions(out min, out max);
+                float hx = Math.Max(0.5f, (max.X - min.X) / 2f);
+                float hy = Math.Max(1.0f, (max.Y - min.Y) / 2f);
+                float hz = Math.Max(0.5f, (max.Z - min.Z) / 2f);
+
+                float[,] hits =
+                {
+                    { 0f, hy, 0.2f }, { 0f, -hy, 0.2f },
+                    { hx, hy * 0.5f, 0.2f }, { -hx, hy * 0.5f, 0.2f },
+                    { hx, -hy * 0.5f, 0.2f }, { -hx, -hy * 0.5f, 0.2f },
+                    { hx, 0f, 0.2f }, { -hx, 0f, 0.2f },
+                    { 0f, 0f, hz },
+                };
+                for (int i = 0; i < hits.GetLength(0); i++)
+                {
+                    Function.Call(Hash.SET_VEHICLE_DAMAGE, v, hits[i, 0], hits[i, 1], hits[i, 2], 1000f, 1.5f, true);
+                }
+            });
+        }
+
+        /// <summary>Ejecuta un paso del desarme sin que un vehículo "raro" (sin ruedas, sin puertas…) corte el resto.</summary>
+        private static void Step(Action step)
+        {
+            try { step(); }
+            catch (Exception ex) { PlayerTransform.Log($"Desarmar: paso omitido ({ex.Message})"); }
         }
 
         /// <summary>
