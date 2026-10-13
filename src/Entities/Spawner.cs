@@ -78,6 +78,27 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
+        /// <summary>Pieza suelta con física (rueda que sale rodando, etc.): a diferencia de SpawnProp, NO queda congelada.</summary>
+        public static Prop SpawnLoosePart(string modelName, Vector3 position, Vector3 velocity)
+        {
+            Model model = Load(modelName);
+            try
+            {
+                Prop prop = World.CreateProp(model, position, Vector3.Zero, true, false);
+                if (prop == null)
+                {
+                    throw new ActionException($"El juego no pudo crear '{modelName}'");
+                }
+                prop.IsPositionFrozen = false;
+                prop.Velocity = velocity;
+                return prop;
+            }
+            finally
+            {
+                model.MarkAsNoLongerNeeded();
+            }
+        }
+
         /// <summary>Rumbo (grados) para que algo en <paramref name="position"/> mire hacia el jugador.</summary>
         public static float HeadingToPlayer(Vector3 position)
         {
@@ -89,7 +110,9 @@ namespace StreamTok.GtaV.Entities
         public static Vector3 NearPlayer(Random rng, float minDist, float maxDist)
         {
             Vector3 origin = GTA.Game.Player.Character.Position;
-            double angle = rng.NextDouble() * Math.PI * 2;
+            // Aparecen DENTRO del campo de visión de la cámara (±70° de hacia donde mira): así quien dona los ve salir.
+            Vector3 camDir = GTA.GameplayCamera.Direction;
+            double angle = Math.Atan2(camDir.Y, camDir.X) + (rng.NextDouble() - 0.5) * (140.0 * Math.PI / 180.0);
             float dist = minDist + (float)rng.NextDouble() * (maxDist - minDist);
 
             var pos = new Vector3(

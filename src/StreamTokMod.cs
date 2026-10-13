@@ -66,6 +66,7 @@ namespace StreamTok.GtaV
         private readonly WebhookServer _webhook;
         private readonly DebugMenu _menu;
         private readonly string _testNameTag;
+        private readonly string _defaultNameTag; // nombre que se dibuja si la app no manda ninguno ("" = no dibujar nada)
         private bool _announced;
 
         public StreamTokMod()
@@ -115,6 +116,7 @@ namespace StreamTok.GtaV
                 rng);
             _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses, race.TrackNames, Setting("Race", "AllowRecording", false));
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
+            _defaultNameTag = TextUtil.CleanTag(Setting("Names", "Default", "StreamTok"));
 
             string url = Setting("Connection", "Url", DefaultUrl);
             if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri) || (uri.Scheme != "ws" && uri.Scheme != "wss"))
@@ -199,6 +201,8 @@ namespace StreamTok.GtaV
                 string args = (cmd.Params != null && cmd.Params.Count > 0)
                     ? " [" + string.Join(", ", cmd.Params.Select(kv => kv.Key + "=" + kv.Value)) + "]"
                     : ""; // los parámetros que RECIBIÓ el mod, para comprobar qué valor manda la app
+                if (!string.IsNullOrEmpty(cmd.NameTag)) args += $" nombre=\"{cmd.NameTag}\""; // el nombre que manda la app para dibujar sobre lo que se genera
+                else args += " sin-nombre";
                 Log(error == null ? $"OK   {cmd.Action}{args} ({cmd.Id})" : $"FAIL {cmd.Action}{args} ({cmd.Id}): {error}");
                 if (cmd.Id != null && cmd.Id.StartsWith("stress-")) CountStress(error == null);
             }
@@ -230,7 +234,7 @@ namespace StreamTok.GtaV
 
             try
             {
-                string tag = action.SupportsNameTag ? TextUtil.CleanTag(nameTag) : null;
+                string tag = action.SupportsNameTag ? (TextUtil.CleanTag(nameTag) ?? _defaultNameTag) : null; // sin nombre de la app: se usa el de por defecto
                 action.Execute(ActionContext.Create(action, rawParams, tag, _services));
             }
             catch (ActionException ex)

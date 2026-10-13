@@ -47,6 +47,7 @@ El nombre del viewer va **siempre encima del objeto**:
 | `vehicle_delete` | Eliminar vehículo del jugador | — | | ✅ v0.3 |
 | `vehicle_eject` | Sacar del vehículo | — | | ✅ v0.3 |
 | `vehicle_break` | Desarmar vehículo | — | | ✅ v0.3 |
+| `vehicle_dismantle` | Desmantelar vehículo (esqueleto: sin puertas, capó, maletero, vidrios ni ruedas; inservible) | — | | ✅ v0.10 |
 | `vehicle_burst_tires` | Romper ruedas | — | | ✅ v0.3 |
 | `vehicle_boost` | Nitro | `power` | | ✅ v0.3 |
 | `vehicle_tuning` | Tuning random | `mode` (partial, full) | | 🚧 v0.4 |

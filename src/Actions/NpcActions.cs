@@ -87,7 +87,7 @@ namespace StreamTok.GtaV.Actions
                 // "random" elige un animal distinto para cada spawn.
                 string model = key == "random" ? ctx.Pick(GameData.Animals.Values.ToList()) : GameData.Animals[key];
 
-                Ped ped = Spawner.SpawnPed(model, Spawner.NearPlayer(ctx.Rng, 4f, 8f));
+                Ped ped = Spawner.SpawnPed(model, Spawner.NearPlayer(ctx.Rng, 3f, 6f));
                 if (hostile)
                 {
                     ped.RelationshipGroup = ctx.Tracker.HostileGroup;
@@ -237,7 +237,7 @@ namespace StreamTok.GtaV.Actions
 
             for (int i = 0; i < count; i++)
             {
-                Ped ped = Spawner.SpawnPed(ctx.Pick(GameData.CrazyNpcs), Spawner.NearPlayer(ctx.Rng, 8f, 15f));
+                Ped ped = Spawner.SpawnPed(ctx.Pick(GameData.CrazyNpcs), Spawner.NearPlayer(ctx.Rng, 5f, 9f));
                 ped.RelationshipGroup = ctx.Tracker.HostileGroup;
                 Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, ped, 46, true); // pelear siempre
                 Function.Call(Hash.SET_PED_COMBAT_ATTRIBUTES, ped, 5, true);  // pelear contra armados aun sin armas
@@ -270,7 +270,7 @@ namespace StreamTok.GtaV.Actions
                 string bikeModel = police ? "policeb" : ctx.Pick(GameData.BanditBikes);
                 string riderModel = police ? "s_m_y_cop_01" : ctx.Pick(GameData.NormalAttackers);
 
-                Vector3 position = Spawner.NearPlayer(ctx.Rng, 35f, 50f);
+                Vector3 position = Spawner.NearPlayer(ctx.Rng, 18f, 28f);
                 Vehicle bike = Spawner.SpawnVehicle(bikeModel, position, Spawner.HeadingToPlayer(position), placeOnGround: true);
                 ctx.Tracker.Track(bike, null, EntityTracker.KindAttacker);
 
@@ -318,7 +318,7 @@ namespace StreamTok.GtaV.Actions
                     default: modelName = ctx.Pick(GameData.NormalAttackers); break;
                 }
 
-                Ped ped = Spawner.SpawnPed(modelName, Spawner.NearPlayer(ctx.Rng, 12f, 25f));
+                Ped ped = Spawner.SpawnPed(modelName, Spawner.NearPlayer(ctx.Rng, 6f, 12f));
                 ped.RelationshipGroup = ctx.Tracker.HostileGroup;
                 if (model == "alien")
                 {
