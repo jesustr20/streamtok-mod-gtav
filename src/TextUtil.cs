@@ -25,6 +25,10 @@ namespace StreamTok.GtaV
                 return null;
             }
 
+            // Letras "decoradas" (𝕍𝕒𝕝𝕖𝕟𝕥𝕚𝕟ℂ𝕊, ｆｕｌｌｗｉｄｔｈ, ①…) se pasan a su letra normal ANTES de filtrar: así "𝕍𝕒𝕝𝕖𝕟𝕥𝕚𝕟ℂ𝕊" sale "ValentinCS"
+            // y no desaparece entero porque la fuente del juego no tiene esos símbolos.
+            try { s = s.Normalize(NormalizationForm.FormKC); } catch { /* cadena inválida: se filtra tal cual */ }
+
             var sb = new StringBuilder(s.Length);
             bool lastWasSpace = false;
             foreach (char c in s)

@@ -116,7 +116,7 @@ namespace StreamTok.GtaV
                 rng);
             _registry = ActionRegistry.CreateDefault(characters, arena.CharacterIds, parkour.Courses, race.TrackNames, Setting("Race", "AllowRecording", false));
             _testNameTag = TextUtil.CleanTag(Setting("Debug", "TestNameTag", "Viewer de prueba"));
-            _defaultNameTag = TextUtil.CleanTag(Setting("Names", "Default", "StreamTok"));
+            _defaultNameTag = TextUtil.CleanTag(Setting("Names", "Default", "StreamTok")); // quién manda cuando la app no trae nombre (el programa)
 
             string url = Setting("Connection", "Url", DefaultUrl);
             if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri) || (uri.Scheme != "ws" && uri.Scheme != "wss"))
@@ -195,7 +195,22 @@ namespace StreamTok.GtaV
             ModCommand cmd;
             for (int i = 0; i < MaxCommandsPerTick && _client.Commands.TryDequeue(out cmd); i++)
             {
-                string error = Run(cmd.Action, cmd.Params, cmd.NameTag, cmd.Notify);
+                // SIEMPRE se sabe quién mandó la acción: el nombre que trae la app (usuario) o, si no trae, el del programa.
+                // Las acciones sin entidades donde dibujar el nombre (terremoto, clima…) lo muestran en un aviso en pantalla.
+                string notify = cmd.Notify;
+                if (string.IsNullOrEmpty(notify) && !(cmd.Id != null && cmd.Id.StartsWith("stress-")))
+                {
+                    ActionDef shown = _registry.Find(cmd.Action);
+                    if (shown != null && !shown.SupportsNameTag)
+                    {
+                        string who = ResolveTag(cmd.NameTag);
+                        if (!string.IsNullOrEmpty(who))
+                        {
+                            notify = $"{who}: {shown.Name}"; // texto plano: CleanText quita los códigos ~x~
+                        }
+                    }
+                }
+                string error = Run(cmd.Action, cmd.Params, cmd.NameTag, notify);
                 // Los comandos del webhook no tienen a quién responder: sin ack (no engordar la cola del WS).
                 if (cmd.Id == null || !cmd.Id.StartsWith("hook-")) _client.Send(Protocol.BuildAck(cmd.Id, error));
                 string args = (cmd.Params != null && cmd.Params.Count > 0)
@@ -234,7 +249,7 @@ namespace StreamTok.GtaV
 
             try
             {
-                string tag = action.SupportsNameTag ? (TextUtil.CleanTag(nameTag) ?? _defaultNameTag) : null; // sin nombre de la app: se usa el de por defecto
+                string tag = action.SupportsNameTag ? ResolveTag(nameTag) : null;
                 action.Execute(ActionContext.Create(action, rawParams, tag, _services));
             }
             catch (ActionException ex)
@@ -255,6 +270,22 @@ namespace StreamTok.GtaV
                 Notification.Show(text);
             }
             return null;
+        }
+
+        /// <summary>
+        /// Nombre a mostrar de quien mandó la acción:
+        ///  - el del usuario que trae la app (limpio para la fuente del juego);
+        ///  - si trae nombre pero TODO eran símbolos que la fuente no dibuja (solo emojis…), "Viewer": sigue siendo un usuario;
+        ///  - si no trae nada, el del programa ([Names] Default, "StreamTok").
+        /// </summary>
+        private string ResolveTag(string raw)
+        {
+            string clean = TextUtil.CleanTag(raw);
+            if (clean != null)
+            {
+                return clean;
+            }
+            return string.IsNullOrWhiteSpace(raw) ? _defaultNameTag : "Viewer";
         }
 
         private void RunFromMenu(ActionDef action, Dictionary<string, object> values)
