@@ -57,6 +57,10 @@ namespace StreamTok.GtaV.Actions
             yield return new ActionDef("vehicle_break", "Desarmar vehículo", false, null,
                 ctx => Dismantle(CurrentOrLast()));
 
+            // Desmantelar: lo deja en el esqueleto (sin puertas, capó, maletero, vidrios ni ruedas) y sin poder manejarse.
+            yield return new ActionDef("vehicle_dismantle", "Desmantelar vehículo", false, null,
+                ctx => DismantleFull(ctx, CurrentOrLast()));
+
             yield return new ActionDef("vehicle_burst_tires", "Romper ruedas", false, null,
                 ctx =>
                 {
@@ -311,25 +315,54 @@ namespace StreamTok.GtaV.Actions
 
             Step(() => BreakOffWheels(v)); // autos, motos, bicis, aviones (tren de aterrizaje)
 
-            // Helicópteros: rotor principal y de cola destruidos.
+            // Helicópteros: aspas paradas, rotor principal y de cola destruidos y cola que se puede soltar.
             Step(() =>
             {
                 if (v.Model.IsHelicopter)
                 {
                     Function.Call(Hash.SET_HELI_MAIN_ROTOR_HEALTH, v, 0f);
                     Function.Call(Hash.SET_HELI_TAIL_ROTOR_HEALTH, v, 0f);
+                    Native("SET_HELI_BLADES_SPEED", v.Handle, 0f);
+                    Native("SET_HELI_TAIL_BOOM_CAN_BREAK_OFF", v.Handle, true);
+                    Native("BREAK_OFF_VEHICLE_TAIL_BOOM", v.Handle);
                 }
+                else if (v.Model.IsPlane)
+                {
+                    // Aviones: hélices y motores muertos (cada nombre solo se usa si esta versión de SHVDN lo tiene).
+                    for (int engine = 0; engine < 4; engine++)
+                    {
+                        Native("SET_PLANE_PROPELLER_HEALTH", v.Handle, 0f);
+                        Native("SET_PLANE_ENGINE_HEALTH", v.Handle, 0f);
+                    }
+                }
+            });
+
+            // Carrocería y motor destrozados (sin fuego ni explosión: el vehículo queda ahí, hecho pedazos).
+            Step(() =>
+            {
+                Function.Call(Hash.SET_VEHICLE_ENGINE_HEALTH, v, 0f);
+                Function.Call(Hash.SET_VEHICLE_BODY_HEALTH, v, 0f);
             });
 
             // Abolladuras: puntos relativos al centro del vehículo (adelante, atrás, costados, techo).
             // Se escalan al tamaño real del vehículo: así también sirven en lanchas, aviones, camiones y motos.
             Step(() =>
             {
-                Vector3 min, max;
-                v.Model.GetDimensions(out min, out max);
-                float hx = Math.Max(0.5f, (max.X - min.X) / 2f);
-                float hy = Math.Max(1.0f, (max.Y - min.Y) / 2f);
-                float hz = Math.Max(0.5f, (max.Z - min.Z) / 2f);
+                // Tamaño real del modelo (el método Model.GetDimensions no existe en SHVDN 3.6): se pide por native y,
+                // si no estuviera, se usa el tamaño de un auto normal.
+                float hx = 1.0f, hy = 2.4f, hz = 0.8f;
+                Hash dimHash;
+                if (Enum.TryParse("GET_MODEL_DIMENSIONS", out dimHash) && Enum.IsDefined(typeof(Hash), dimHash))
+                {
+                    var outMin = new OutputArgument();
+                    var outMax = new OutputArgument();
+                    Function.Call(dimHash, v.Model.Hash, outMin, outMax);
+                    Vector3 min = outMin.GetResult<Vector3>();
+                    Vector3 max = outMax.GetResult<Vector3>();
+                    hx = Math.Max(0.5f, (max.X - min.X) / 2f);
+                    hy = Math.Max(1.0f, (max.Y - min.Y) / 2f);
+                    hz = Math.Max(0.5f, (max.Z - min.Z) / 2f);
+                }
 
                 float[,] hits =
                 {
@@ -337,13 +370,160 @@ namespace StreamTok.GtaV.Actions
                     { hx, hy * 0.5f, 0.2f }, { -hx, hy * 0.5f, 0.2f },
                     { hx, -hy * 0.5f, 0.2f }, { -hx, -hy * 0.5f, 0.2f },
                     { hx, 0f, 0.2f }, { -hx, 0f, 0.2f },
-                    { 0f, 0f, hz },
+                    { 0f, 0f, hz }, { 0f, 0f, -hz * 0.5f },
+                    { hx, hy * 0.9f, hz * 0.5f }, { -hx, hy * 0.9f, hz * 0.5f },
+                    { hx, -hy * 0.9f, hz * 0.5f }, { -hx, -hy * 0.9f, hz * 0.5f },
                 };
-                for (int i = 0; i < hits.GetLength(0); i++)
+                for (int pass = 0; pass < 2; pass++) // dos pasadas: la segunda termina de hundir lo que quedó entero
                 {
-                    Function.Call(Hash.SET_VEHICLE_DAMAGE, v, hits[i, 0], hits[i, 1], hits[i, 2], 1000f, 1.5f, true);
+                    for (int i = 0; i < hits.GetLength(0); i++)
+                    {
+                        Function.Call(Hash.SET_VEHICLE_DAMAGE, v, hits[i, 0], hits[i, 1], hits[i, 2], 1000f, 2.5f, true);
+                    }
                 }
             });
+        }
+
+        /// <summary>
+        /// Llama a un native POR NOMBRE solo si existe en el enum Hash de la versión de SHVDN cargada; si no, no hace nada
+        /// (así no hay error de compilación ni se llama a un hash desconocido). Acepta int, float y bool.
+        /// </summary>
+        private static bool Native(string name, params object[] args)
+        {
+            Hash hash;
+            if (!Enum.TryParse(name, out hash) || !Enum.IsDefined(typeof(Hash), hash))
+            {
+                return false;
+            }
+
+            var input = new InputArgument[args.Length];
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] is int) input[i] = (int)args[i];
+                else if (args[i] is float) input[i] = (float)args[i];
+                else if (args[i] is bool) input[i] = (bool)args[i];
+                else return false;
+            }
+            Function.Call(hash, input);
+            return true;
+        }
+
+        /// <summary>
+        /// Desmantelar: todo lo del desarme y además las RUEDAS SALEN DESPEDIDAS. En este juego las ruedas solo se arrancan
+        /// cuando el vehículo explota con "las ruedas pueden salir al explotar" activado, así que: se suelta todo lo demás,
+        /// el jugador sale del vehículo (protegido de la explosión), el vehículo explota y las ruedas vuelan; después se apaga
+        /// el fuego y queda el esqueleto (sin puertas, capó, maletero, vidrios ni ruedas) inservible.
+        /// </summary>
+        private static void DismantleFull(ActionContext ctx, Vehicle v)
+        {
+            LogPartsDiagnostic();
+
+            Dismantle(v); // puertas, capó, maletero, vidrios, abolladuras, motor y carrocería a 0
+
+            Ped player = GTA.Game.Player.Character;
+            int vehicleHandle = v.Handle;
+
+            Step(() =>
+            {
+                Native("SET_VEHICLE_WHEELS_CAN_BREAK", vehicleHandle, true);
+                Native("SET_VEHICLE_WHEELS_CAN_BREAK_OFF_WHEN_BLOW_UP", vehicleHandle, true);
+                Function.Call(Hash.SET_VEHICLE_UNDRIVEABLE, v, true);
+            });
+
+            // El jugador sale del vehículo y queda a prueba de explosión y fuego mientras dura el efecto.
+            Step(() =>
+            {
+                player.IsExplosionProof = true;
+                player.IsFireProof = true;
+                if (player.IsInVehicle(v))
+                {
+                    Function.Call(Hash.TASK_LEAVE_VEHICLE, player, v, 16); // 16 = salir de golpe
+                }
+            });
+
+            string key = "dismantle_" + vehicleHandle;
+
+            // 1 segundo después (ya fuera): explota, las ruedas salen despedidas.
+            ctx.Scheduler.RepeatFor(key, 1, () => { }, () =>
+            {
+                Step(() =>
+                {
+                    Vehicle target = v; // el mismo objeto: sirve mientras el vehículo exista (Exists())
+                    if (target.Exists())
+                    {
+                        Native("EXPLODE_VEHICLE", vehicleHandle, true, true);
+                    }
+                });
+
+                // 4 segundos después: se apaga el fuego y el jugador vuelve a ser vulnerable.
+                ctx.Scheduler.RepeatFor(key + "_end", 4, () => { }, () =>
+                {
+                    Step(() =>
+                    {
+                        Vehicle target = v; // el mismo objeto: sirve mientras el vehículo exista (Exists())
+                        if (target.Exists())
+                        {
+                            Function.Call(Hash.STOP_ENTITY_FIRE, target);
+                            Function.Call(Hash.SET_VEHICLE_ENGINE_ON, target, false, true, true);
+                        }
+                        Ped p = GTA.Game.Player.Character;
+                        p.IsExplosionProof = false;
+                        p.IsFireProof = false;
+                    });
+                });
+            });
+        }
+
+        private static bool _loggedPartsDiag;
+
+        /// <summary>
+        /// Diagnóstico (una sola vez por sesión): qué natives y métodos tiene ESTA versión de SHVDN para ruedas y piezas
+        /// sueltas. Sirve para saber cómo arrancar las ruedas sin adivinar nombres.
+        /// </summary>
+        private static void LogPartsDiagnostic()
+        {
+            if (_loggedPartsDiag)
+            {
+                return;
+            }
+            _loggedPartsDiag = true;
+
+            try
+            {
+                var hashes = new List<string>();
+                foreach (string name in Enum.GetNames(typeof(Hash)))
+                {
+                    if (name.Contains("VEHICLE_WHEEL") || name.Contains("BREAK_OFF") || name.Contains("DETACH_VEHICLE") ||
+                        name.Contains("TYRE_RADIUS") || name.Contains("WHEEL_SIZE") || name.Contains("WHEEL_WIDTH") || name.Contains("RIM_RADIUS") ||
+                        name.Contains("VEHICLE_DOOR_BROKEN") || name.Contains("FIX_VEHICLE_WHEEL"))
+                    {
+                        hashes.Add(name);
+                    }
+                }
+                PlayerTransform.Log("Desmantelar diag: Hash (" + hashes.Count + ") = " + string.Join(", ", hashes));
+
+                var vehMethods = new List<string>();
+                foreach (System.Reflection.MethodInfo m in typeof(Vehicle).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+                {
+                    string n = m.Name.ToLowerInvariant();
+                    if (n.Contains("wheel") || n.Contains("break") || n.Contains("detach") || n.Contains("part") || n.Contains("door") || n.Contains("bumper"))
+                    {
+                        vehMethods.Add(m.Name + "(" + m.GetParameters().Length + ")");
+                    }
+                }
+                PlayerTransform.Log("Desmantelar diag: Vehicle métodos = " + string.Join(", ", vehMethods));
+
+                var collMethods = new List<string>();
+                foreach (System.Reflection.MethodInfo m in typeof(VehicleWheelCollection).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+                {
+                    collMethods.Add(m.Name + "(" + m.GetParameters().Length + ")");
+                }
+                PlayerTransform.Log("Desmantelar diag: VehicleWheelCollection métodos = " + string.Join(", ", collMethods));
+            }
+            catch (Exception ex)
+            {
+                PlayerTransform.Log("Desmantelar diag: " + ex.Message);
+            }
         }
 
         /// <summary>Ejecuta un paso del desarme sin que un vehículo "raro" (sin ruedas, sin puertas…) corte el resto.</summary>
@@ -386,9 +566,41 @@ namespace StreamTok.GtaV.Actions
         /// si está, las ruedas salen volando; si no, se revientan y el auto queda sobre las llantas.
         /// NO llamar natives por su código crudo: si ScriptHookV no lo reconoce, corta el juego.
         /// </summary>
-        private static readonly System.Reflection.MethodInfo WheelBreakOff =
-            typeof(VehicleWheel).GetMethod("BreakOff", new[] { typeof(bool), typeof(bool) })
-            ?? typeof(VehicleWheel).GetMethod("BreakOff", Type.EmptyTypes);
+        private static readonly System.Reflection.MethodInfo WheelBreakOff = FindWheelBreakOff();
+
+        /// <summary>
+        /// Busca en VehicleWheel el método que arranca la rueda, sea cual sea su firma en la versión de SHVDN cargada:
+        /// BreakOff(), BreakOff(bool, bool), Detach… Se elige el de nombre BreakOff/Detach/TearOff con menos parámetros.
+        /// </summary>
+        private static System.Reflection.MethodInfo FindWheelBreakOff()
+        {
+            System.Reflection.MethodInfo best = null;
+            foreach (System.Reflection.MethodInfo m in typeof(VehicleWheel).GetMethods())
+            {
+                string n = m.Name.ToLowerInvariant();
+                if (!(n.Contains("breakoff") || n.Contains("detach") || n.Contains("tearoff") || n.Contains("remove")))
+                {
+                    continue;
+                }
+                if (best == null || m.GetParameters().Length < best.GetParameters().Length)
+                {
+                    best = m;
+                }
+            }
+            return best;
+        }
+
+        private static object[] DefaultArgs(System.Reflection.MethodInfo m)
+        {
+            System.Reflection.ParameterInfo[] ps = m.GetParameters();
+            var args = new object[ps.Length];
+            for (int i = 0; i < ps.Length; i++)
+            {
+                Type t = ps[i].ParameterType;
+                args[i] = t == typeof(bool) ? (object)(i == 0) : t.IsValueType ? Activator.CreateInstance(t) : null;
+            }
+            return args;
+        }
 
         private static bool _loggedWheelMode;
 
@@ -397,13 +609,25 @@ namespace StreamTok.GtaV.Actions
             if (!_loggedWheelMode)
             {
                 _loggedWheelMode = true;
+                // Diagnóstico: qué métodos tiene VehicleWheel en la versión de SHVDN que corre en el juego.
+                var names = new List<string>();
+                foreach (System.Reflection.MethodInfo m in typeof(VehicleWheel).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+                {
+                    names.Add(m.Name + "(" + m.GetParameters().Length + ")");
+                }
+                PlayerTransform.Log("Desarmar: VehicleWheel métodos = " + string.Join(", ", names));
                 PlayerTransform.Log(WheelBreakOff != null
-                    ? "Desarmar: SHVDN soporta BreakOff, las ruedas se sueltan"
-                    : "Desarmar: SHVDN sin BreakOff, las ruedas se revientan (plan B)");
+                    ? "Desarmar: se usará " + WheelBreakOff.Name + " para soltar las ruedas"
+                    : "Desarmar: SHVDN sin método para soltar ruedas, las ruedas se revientan (plan B)");
             }
 
             if (WheelBreakOff == null)
             {
+                // Si esta versión de SHVDN trae el native de arrancar ruedas, se usa por nombre en las 8 posiciones.
+                for (int wheel = 0; wheel < 8; wheel++)
+                {
+                    Native("BREAK_OFF_VEHICLE_WHEEL", v.Handle, wheel, true, false, true, false);
+                }
                 Function.Call(Hash.SET_VEHICLE_TYRES_CAN_BURST, v, true);
                 foreach (int wheel in new[] { 0, 1, 2, 3, 4, 5, 45, 47 })
                 {
@@ -412,13 +636,9 @@ namespace StreamTok.GtaV.Actions
                 return;
             }
 
-            object[] args = WheelBreakOff.GetParameters().Length == 2
-                ? new object[] { true, false } // deja escombros; la rueda queda en el mundo
-                : new object[0];
-
             foreach (VehicleWheel wheel in v.Wheels.GetAllWheels())
             {
-                WheelBreakOff.Invoke(wheel, args);
+                WheelBreakOff.Invoke(wheel, DefaultArgs(WheelBreakOff));
             }
         }
 

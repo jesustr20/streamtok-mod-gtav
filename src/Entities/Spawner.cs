@@ -78,6 +78,27 @@ namespace StreamTok.GtaV.Entities
             }
         }
 
+        /// <summary>Pieza suelta con física (rueda que sale rodando, etc.): a diferencia de SpawnProp, NO queda congelada.</summary>
+        public static Prop SpawnLoosePart(string modelName, Vector3 position, Vector3 velocity)
+        {
+            Model model = Load(modelName);
+            try
+            {
+                Prop prop = World.CreateProp(model, position, Vector3.Zero, true, false);
+                if (prop == null)
+                {
+                    throw new ActionException($"El juego no pudo crear '{modelName}'");
+                }
+                prop.IsPositionFrozen = false;
+                prop.Velocity = velocity;
+                return prop;
+            }
+            finally
+            {
+                model.MarkAsNoLongerNeeded();
+            }
+        }
+
         /// <summary>Rumbo (grados) para que algo en <paramref name="position"/> mire hacia el jugador.</summary>
         public static float HeadingToPlayer(Vector3 position)
         {

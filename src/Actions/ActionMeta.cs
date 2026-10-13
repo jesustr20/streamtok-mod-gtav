@@ -48,6 +48,7 @@ namespace StreamTok.GtaV.Actions
             ["vehicle_delete"]      = new[] { Vehicle, "delete_vehicle", "Elimina el vehículo del jugador" },
             ["vehicle_eject"]       = new[] { Vehicle, "eject", "Saca al jugador del vehículo" },
             ["vehicle_break"]       = new[] { Vehicle, "dismantle", "Desmantela el vehículo: puertas, ruedas y vidrios" },
+            ["vehicle_dismantle"]   = new[] { Vehicle, "dismantle", "Desmantelar: puertas, capó, maletero y vidrios fuera; explota y las ruedas salen despedidas; queda el esqueleto inservible" },
             ["vehicle_burst_tires"] = new[] { Vehicle, "tires", "Revienta las ruedas" },
             ["vehicle_tuning"]      = new[] { Vehicle, "tuning", "Tuning al azar, parcial o completo" },
             ["vehicle_boost"]       = new[] { Vehicle, "nitro", "Un empujón de nitro" },
