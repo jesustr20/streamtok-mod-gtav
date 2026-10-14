@@ -155,13 +155,47 @@ namespace StreamTok.GtaV.Actions
         private static void ArmAttackers(ActionContext ctx)
         {
             string weapon = ctx.Enum("weapon");
-            List<string> options = GameData.Weapons.Keys.Where(k => k != "sniper").ToList();
 
             foreach (Ped ped in RequireAttackers(ctx))
             {
-                string w = weapon == "random" ? ctx.Pick(options) : weapon;
+                // Las armas láser son solo de los aliens; los demás atacantes llevan las normales.
+                bool alien = ped.Model.Hash == GTA.Game.GenerateHash(AlienModel);
+                string w = weapon == "random" ? ctx.Pick(alien ? AlienWeapons : HumanWeapons) : weapon;
+                w = alien ? ToAlienWeapon(w) : ToHumanWeapon(w);
                 ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
             }
+        }
+
+        private const string AlienModel = "s_m_m_movalien_01";
+
+        /// <summary>Armas normales (sin láser ni francotirador): las que pueden llevar los atacantes que no son aliens.</summary>
+        private static readonly List<string> HumanWeapons =
+            GameData.Weapons.Keys.Where(k => k != "sniper" && !k.StartsWith("ray_")).ToList();
+
+        /// <summary>Armas láser: exclusivas de los aliens.</summary>
+        private static readonly List<string> AlienWeapons =
+            GameData.Weapons.Keys.Where(k => k.StartsWith("ray_")).ToList();
+
+        /// <summary>Un atacante que no es alien no usa láser: se cambia por su equivalente normal.</summary>
+        private static string ToHumanWeapon(string w)
+        {
+            switch (w)
+            {
+                case "ray_minigun": return "mg";
+                case "ray_carbine": return "rifle";
+                case "ray_pistol": return "pistol";
+                default: return w;
+            }
+        }
+
+        /// <summary>Los aliens atacan con armas láser: la pesada para "mg", la carabina para fusiles, la pistola para el resto.</summary>
+        private static string ToAlienWeapon(string w)
+        {
+            if (w.StartsWith("ray_"))
+            {
+                return w;
+            }
+            return w == "mg" ? "ray_minigun" : (w == "rifle" || w == "smg") ? "ray_carbine" : "ray_pistol";
         }
 
         /// <summary>
@@ -302,7 +336,7 @@ namespace StreamTok.GtaV.Actions
             string weapon = ctx.Enum("weapon");
             string model = ctx.Enum("model");
             Ped player = GTA.Game.Player.Character;
-            List<string> attackerWeapons = GameData.Weapons.Keys.Where(k => k != "sniper").ToList();
+            List<string> attackerWeapons = HumanWeapons;
 
             for (int i = 0; i < count; i++)
             {
@@ -330,14 +364,12 @@ namespace StreamTok.GtaV.Actions
                 // El chimpancé SÍ usa arma: armado deja de comportarse como animal asustadizo. Sin arma
                 // elegida lleva un martillo.
                 bool chimp = modelName == "a_c_chimp" || modelName == "a_c_chimp_02" || modelName == "a_c_rhesus";
-                if (weapon != "none" || chimp || model == "alien")
+                bool alien = modelName == AlienModel; // también cuando sale del modo "random"
+                if (weapon != "none" || chimp || alien)
                 {
-                    string w = weapon == "random" ? ctx.Pick(attackerWeapons) : (weapon == "none" ? (model == "alien" ? "ray_pistol" : "hammer") : weapon);
-                    if (model == "alien" && !w.StartsWith("ray_"))
-                    {
-                        // Los aliens atacan con armas láser: la pesada para "mg", la carabina para fusiles, la pistola para el resto.
-                        w = w == "mg" ? "ray_minigun" : (w == "rifle" || w == "smg") ? "ray_carbine" : "ray_pistol";
-                    }
+                    string w = weapon == "random" ? ctx.Pick(alien ? AlienWeapons : attackerWeapons) : (weapon == "none" ? (alien ? "ray_pistol" : "hammer") : weapon);
+                    // Las armas láser son solo de los aliens; los demás atacantes llevan las normales.
+                    w = alien ? ToAlienWeapon(w) : ToHumanWeapon(w);
                     ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
                 }
 
