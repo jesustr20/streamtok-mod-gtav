@@ -159,7 +159,7 @@ namespace StreamTok.GtaV.Actions
             foreach (Ped ped in RequireAttackers(ctx))
             {
                 // Las armas láser son solo de los aliens; los demás atacantes llevan las normales.
-                bool alien = ped.Model.Hash == GTA.Game.GenerateHash(AlienModel);
+                bool alien = LaserGuard.IsAlien(ped);
                 string w = weapon == "random" ? ctx.Pick(alien ? AlienWeapons : HumanWeapons) : weapon;
                 w = alien ? ToAlienWeapon(w) : ToHumanWeapon(w);
                 ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
@@ -177,7 +177,7 @@ namespace StreamTok.GtaV.Actions
             GameData.Weapons.Keys.Where(k => k.StartsWith("ray_")).ToList();
 
         /// <summary>Un atacante que no es alien no usa láser: se cambia por su equivalente normal.</summary>
-        private static string ToHumanWeapon(string w)
+        internal static string ToHumanWeapon(string w)
         {
             switch (w)
             {
@@ -371,6 +371,7 @@ namespace StreamTok.GtaV.Actions
                     // Las armas láser son solo de los aliens; los demás atacantes llevan las normales.
                     w = alien ? ToAlienWeapon(w) : ToHumanWeapon(w);
                     ped.Weapons.Give(GameData.Weapons[w], 9999, true, true);
+                    PlayerTransform.Log($"Atacante modelo={modelName} arma={w} (pedido: weapon={weapon}, model={model})");
                 }
 
                 if (IsAnimal(ped))
