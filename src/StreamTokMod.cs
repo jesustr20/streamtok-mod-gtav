@@ -226,6 +226,7 @@ namespace StreamTok.GtaV
             // Cada módulo por separado: si uno falla, los demás siguen (y el error se anota sin inundar el log).
             Safe("Tareas", _services.Scheduler.Update);
             Safe("Nombres", _services.Tracker.Update);
+            Safe("Láser", StreamTok.GtaV.Entities.LaserGuard.Update);
             Safe("Personajes", _services.Characters.Update);
             Safe("Efectos", _services.Effects.Update);
             Safe("Chiliad", _services.Chiliad.Update);

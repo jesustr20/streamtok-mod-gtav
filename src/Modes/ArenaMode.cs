@@ -46,7 +46,7 @@ namespace StreamTok.GtaV.Modes
         };
 
         /// <summary>Armas que se pueden dar ("random" = una al azar). Se quedan para siempre.</summary>
-        public static string[] WeaponChoices => new[] { "random" }.Concat(GameData.Weapons.Keys).ToArray();
+        public static string[] WeaponChoices => new[] { "random" }.Concat(GameData.Weapons.Keys.Where(k => !k.StartsWith("ray_"))).ToArray();
 
         /// <summary>
         /// Tabla de vida por donación: desde X monedas, cada moneda da Y de vida. Las donaciones
@@ -335,7 +335,9 @@ namespace StreamTok.GtaV.Modes
         public void GiveWeapon(string name, string weapon)
         {
             Fighter f = RequireFighter(name);
-            string key = weapon == "random" ? GameData.Weapons.Keys.ElementAt(_rng.Next(GameData.Weapons.Count)) : weapon;
+            // Las armas láser son solo de los aliens: el "random" de la arena no las reparte.
+            var normales = GameData.Weapons.Keys.Where(k => !k.StartsWith("ray_")).ToList();
+            string key = weapon == "random" ? normales[_rng.Next(normales.Count)] : NpcActions.ToHumanWeapon(weapon);
             if (!GameData.Weapons.TryGetValue(key, out WeaponHash hash))
             {
                 throw new ActionException($"Arma desconocida: {weapon}");
