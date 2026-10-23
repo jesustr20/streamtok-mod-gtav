@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GTA;
 using GTA.Native;
 
@@ -18,10 +19,20 @@ namespace StreamTok.GtaV.Entities
         private const float Radius = 150f;
         private static int _nextCheck;
 
-        /// <summary>¿Es el modelo del alien con traje?</summary>
+        // Aliens generados a propósito (con su traje completo). Un NPC con el modelo de alien pero con ropa normal
+        // (los "hombres de negro") NO cuenta: no puede llevar láser.
+        private static readonly HashSet<int> Aliens = new HashSet<int>();
+
+        /// <summary>Marca a un NPC como alien de verdad (modelo + traje completo).</summary>
+        public static void MarkAlien(Ped ped)
+        {
+            Aliens.Add(ped.Handle);
+        }
+
+        /// <summary>¿Es un alien generado a propósito, con su traje?</summary>
         public static bool IsAlien(Ped ped)
         {
-            return Function.Call<int>(Hash.GET_ENTITY_MODEL, ped) == Function.Call<int>(Hash.GET_HASH_KEY, AlienModel);
+            return Aliens.Contains(ped.Handle);
         }
 
         /// <summary>Llamar cada frame: se ejecuta solo una vez por segundo.</summary>
@@ -33,6 +44,8 @@ namespace StreamTok.GtaV.Entities
                 return;
             }
             _nextCheck = now + IntervalMs;
+
+            Aliens.RemoveWhere(h => !Function.Call<bool>(Hash.DOES_ENTITY_EXIST, h));
 
             Ped player = GTA.Game.Player.Character;
             foreach (Ped ped in World.GetNearbyPeds(player.Position, Radius))

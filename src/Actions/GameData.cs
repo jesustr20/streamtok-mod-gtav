@@ -35,7 +35,7 @@ namespace StreamTok.GtaV.Actions
         public static readonly string[] RandomAttackers =
         {
             "g_m_y_lost_01", "g_m_y_mexgoon_01", "g_m_y_ballasout_01", "s_m_y_clown_01",
-            "u_m_y_zombie_01", "s_m_m_movalien_01", "a_m_m_beach_01",
+            "u_m_y_zombie_01", "a_m_m_beach_01",
         };
 
         public static readonly Dictionary<string, WeaponHash> Weapons = new Dictionary<string, WeaponHash>

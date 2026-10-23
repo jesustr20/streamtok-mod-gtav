@@ -354,11 +354,12 @@ namespace StreamTok.GtaV.Actions
 
                 Ped ped = Spawner.SpawnPed(modelName, Spawner.NearPlayer(ctx.Rng, 6f, 12f));
                 ped.RelationshipGroup = ctx.Tracker.HostileGroup;
-                if (model == "alien")
+                if (modelName == AlienModel)
                 {
                     // Este modelo es un actor con traje: el juego le pone ropa al azar y a veces sale sin el traje de alien.
-                    // La variación por defecto es la del alien completo.
+                    // La variación por defecto es la del alien completo. Solo este alien (con traje) puede llevar láser.
                     Function.Call(Hash.SET_PED_DEFAULT_COMPONENT_VARIATION, ped.Handle);
+                    LaserGuard.MarkAlien(ped);
                 }
 
                 // El chimpancé SÍ usa arma: armado deja de comportarse como animal asustadizo. Sin arma
