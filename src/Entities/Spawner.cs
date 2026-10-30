@@ -1,6 +1,7 @@
 using System;
 using GTA;
 using GTA.Math;
+using GTA.Native;
 using StreamTok.GtaV.Actions;
 
 namespace StreamTok.GtaV.Entities
@@ -106,7 +107,23 @@ namespace StreamTok.GtaV.Entities
             return (float)(Math.Atan2(-toPlayer.X, toPlayer.Y) * 180.0 / Math.PI);
         }
 
-        /// <summary>Punto al azar alrededor del jugador, entre minDist y maxDist metros, a nivel del suelo.</summary>
+        /// <summary>Altura sobre el suelo (m) desde la que se considera que el jugador está "en el aire".</summary>
+        private const float AirborneHeight = 4f;
+
+        /// <summary>
+        /// ¿El jugador está en el aire (cayendo, en paracaídas, en un avión o helicóptero, saltando de un edificio)?
+        /// Un salto normal o estar en un techo NO cuenta: se mide contra lo que tiene justo debajo.
+        /// </summary>
+        public static bool IsPlayerAirborne()
+        {
+            Ped player = GTA.Game.Player.Character;
+            return Function.Call<float>(Hash.GET_ENTITY_HEIGHT_ABOVE_GROUND, player) > AirborneHeight;
+        }
+
+        /// <summary>
+        /// Punto al azar alrededor del jugador, entre minDist y maxDist metros. A nivel del suelo si el jugador
+        /// está en tierra; a SU altura si está en el aire (así los espectadores ven salir a los NPC donde él está).
+        /// </summary>
         public static Vector3 NearPlayer(Random rng, float minDist, float maxDist)
         {
             Vector3 origin = GTA.Game.Player.Character.Position;
@@ -119,6 +136,13 @@ namespace StreamTok.GtaV.Entities
                 origin.X + (float)Math.Cos(angle) * dist,
                 origin.Y + (float)Math.Sin(angle) * dist,
                 origin.Z + 3f);
+
+            if (IsPlayerAirborne())
+            {
+                // En el aire: a la altura del jugador (con un poco de variación para que no salgan todos en fila).
+                pos.Z = origin.Z + (float)(rng.NextDouble() * 2.0 - 0.5);
+                return pos;
+            }
 
             // Busca el suelo desde un poco más arriba del jugador; si no lo encuentra
             // (zona no cargada), usa la altura del jugador.
