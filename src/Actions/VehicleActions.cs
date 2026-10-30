@@ -35,7 +35,7 @@ namespace StreamTok.GtaV.Actions
                 ctx => ctx.Tracker.RemoveKind(EntityTracker.KindRamp));
 
             yield return new ActionDef("vehicles_remove", "Remover vehículos", false, null,
-                ctx => ctx.Tracker.RemoveKind(EntityTracker.KindVehicle));
+                RemoveVehicles);
 
             yield return new ActionDef("vehicle_repair", "Reparar vehículo", false, null,
                 ctx => CurrentOrLast().Repair());
@@ -684,6 +684,67 @@ namespace StreamTok.GtaV.Actions
                 throw new ActionException("El jugador no está en un vehículo");
             }
             return v;
+        }
+
+        /// <summary>
+        /// Borra: los vehículos generados por el mod, el vehículo del jugador (el que maneja o el último que usó)
+        /// y los vehículos VACÍOS a su alrededor (también los que ya estaban antes de cargar el mod, o que el
+        /// jugador agarró). No toca a los autos con gente adentro. Con una carrera activa solo borra los generados.
+        /// </summary>
+        private static void RemoveVehicles(ActionContext ctx)
+        {
+            int removed = ctx.Tracker.RemoveKind(EntityTracker.KindVehicle);
+
+            if (!ctx.Race.IsActive)
+            {
+                Ped player = GTA.Game.Player.Character;
+                Vehicle mine = player.CurrentVehicle ?? player.LastVehicle;
+                if (mine != null && !mine.Exists())
+                {
+                    mine = null;
+                }
+
+                var toDelete = new List<Vehicle>();
+                if (mine != null)
+                {
+                    toDelete.Add(mine);
+                }
+
+                foreach (Vehicle v in World.GetNearbyVehicles(player.Position, NearbyRemoveRadius))
+                {
+                    if (v != null && v.Exists() && (mine == null || v.Handle != mine.Handle) && IsEmptyVehicle(v))
+                    {
+                        toDelete.Add(v);
+                    }
+                }
+
+                foreach (Vehicle v in toDelete)
+                {
+                    ctx.Tracker.Untrack(v);
+                    EntityTracker.SafeDelete(v);
+                    removed++;
+                }
+
+                if (_lastPlayerVehicle != null && !_lastPlayerVehicle.Exists())
+                {
+                    _lastPlayerVehicle = null;
+                }
+            }
+
+            PlayerTransform.Log($"Remover vehículos: {removed} borrados");
+            if (removed == 0)
+            {
+                throw new ActionException("No hay vehículos para borrar");
+            }
+        }
+
+        private const float NearbyRemoveRadius = 150f;
+
+        /// <summary>Sin conductor ni pasajeros.</summary>
+        private static bool IsEmptyVehicle(Vehicle v)
+        {
+            return Function.Call<bool>(Hash.IS_VEHICLE_SEAT_FREE, v, -1, false)
+                && Function.Call<int>(Hash.GET_VEHICLE_NUMBER_OF_PASSENGERS, v) == 0;
         }
 
         /// <summary>El vehículo actual o, si va a pie, el último que usó.</summary>
