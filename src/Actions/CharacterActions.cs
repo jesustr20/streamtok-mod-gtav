@@ -82,7 +82,7 @@ namespace StreamTok.GtaV.Actions
             {
                 CharacterDef def = characterId == "random" ? ctx.Pick(characters.ToList()) : characters.First(c => c.Id == characterId);
 
-                Ped ped = Spawner.SpawnPed(def.Model, Spawner.NearPlayer(ctx.Rng, hostile ? 6f : 2f, hostile ? 12f : 4f));
+                Ped ped = Spawner.SpawnPed(def.Model, Spawner.NearPlayer(ctx.Rng, hostile ? 4f : 2f, hostile ? 8f : 3.5f));
 
                 if (GameData.Weapons.TryGetValue(def.Weapon, out WeaponHash weapon))
                 {
