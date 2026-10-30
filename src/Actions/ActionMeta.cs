@@ -42,7 +42,7 @@ namespace StreamTok.GtaV.Actions
             ["spawn_vehicle"]       = new[] { Vehicle, "vehicle", "Aparece un vehículo al lado con el nombre del viewer" },
             ["spawn_ramp"]          = new[] { Vehicle, "ramp", "Una rampa delante del jugador" },
             ["ramps_remove"]        = new[] { Vehicle, "remove", "Borra las rampas" },
-            ["vehicles_remove"]     = new[] { Vehicle, "remove", "Borra los vehículos generados" },
+            ["vehicles_remove"]     = new[] { Vehicle, "remove", "Borra los vehículos generados, el del jugador y los vehículos vacíos cercanos (150 m)" },
             ["vehicle_repair"]      = new[] { Vehicle, "repair", "Repara el vehículo del jugador" },
             ["vehicle_explode"]     = new[] { Vehicle, "explode", "Hace explotar el vehículo del jugador" },
             ["vehicle_delete"]      = new[] { Vehicle, "delete_vehicle", "Elimina el vehículo del jugador" },
