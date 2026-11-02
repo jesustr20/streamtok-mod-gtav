@@ -20,6 +20,14 @@ namespace StreamTok.GtaV.Entities
                 {
                     throw new ActionException($"El juego no pudo crear '{modelName}' (¿límite de entidades?)");
                 }
+
+                // Si aparece encima de un helicóptero en movimiento, arranca con su velocidad: así cae sobre las
+                // hélices y no se queda atrás en el aire.
+                Vehicle heli = PlayerHelicopter();
+                if (heli != null && position.Z > heli.Position.Z + 1f)
+                {
+                    ped.Velocity = heli.Velocity;
+                }
                 return ped;
             }
             finally
@@ -107,6 +115,43 @@ namespace StreamTok.GtaV.Entities
             return (float)(Math.Atan2(-toPlayer.X, toPlayer.Y) * 180.0 / Math.PI);
         }
 
+        /// <summary>Radio (m) dentro del que caen los NPC sobre el rotor principal de un helicóptero.</summary>
+        private const float RotorRadius = 2.5f;
+
+        /// <summary>El helicóptero en el que va el jugador (conductor o pasajero), o null si no va en uno.</summary>
+        public static Vehicle PlayerHelicopter()
+        {
+            Ped player = GTA.Game.Player.Character;
+            if (!player.IsInVehicle())
+            {
+                return null;
+            }
+            Vehicle v = player.CurrentVehicle;
+            if (v == null || !v.Exists())
+            {
+                return null;
+            }
+            return Function.Call<int>(Hash.GET_VEHICLE_CLASS, v) == 15 ? v : null; // 15 = helicópteros
+        }
+
+        /// <summary>Altura (m) de la parte más alta del vehículo (con el rotor) sobre su centro. Si no se puede medir, 3 m.</summary>
+        private static float TopOf(Vehicle v)
+        {
+            Hash dimHash;
+            if (Enum.TryParse("GET_MODEL_DIMENSIONS", out dimHash) && Enum.IsDefined(typeof(Hash), dimHash))
+            {
+                var outMin = new OutputArgument();
+                var outMax = new OutputArgument();
+                Function.Call(dimHash, v.Model.Hash, outMin, outMax);
+                float top = outMax.GetResult<Vector3>().Z;
+                if (top > 0.5f && top < 15f)
+                {
+                    return top;
+                }
+            }
+            return 3f;
+        }
+
         /// <summary>Altura sobre el suelo (m) desde la que se considera que el jugador está "en el aire".</summary>
         private const float AirborneHeight = 4f;
 
@@ -123,9 +168,23 @@ namespace StreamTok.GtaV.Entities
         /// <summary>
         /// Punto al azar alrededor del jugador, entre minDist y maxDist metros. A nivel del suelo si el jugador
         /// está en tierra; a SU altura si está en el aire (así los espectadores ven salir a los NPC donde él está).
+        /// Si va en un helicóptero (<paramref name="onRotors"/>), aparecen encima de las hélices.
         /// </summary>
-        public static Vector3 NearPlayer(Random rng, float minDist, float maxDist)
+        public static Vector3 NearPlayer(Random rng, float minDist, float maxDist, bool onRotors = true)
         {
+            // En un helicóptero: encima de las hélices (sobre el rotor principal), apenas arriba para que caigan sobre ellas.
+            Vehicle heli = onRotors ? PlayerHelicopter() : null;
+            if (heli != null)
+            {
+                double a = rng.NextDouble() * 2.0 * Math.PI;
+                float r = (float)Math.Sqrt(rng.NextDouble()) * RotorRadius;
+                Vector3 hp = heli.Position;
+                return new Vector3(
+                    hp.X + (float)Math.Cos(a) * r,
+                    hp.Y + (float)Math.Sin(a) * r,
+                    hp.Z + TopOf(heli) + 0.6f + (float)rng.NextDouble() * 0.8f);
+            }
+
             Vector3 origin = GTA.Game.Player.Character.Position;
             // Aparecen DENTRO del campo de visión de la cámara (±70° de hacia donde mira): así quien dona los ve salir.
             Vector3 camDir = GTA.GameplayCamera.Direction;

@@ -304,7 +304,7 @@ namespace StreamTok.GtaV.Actions
                 string bikeModel = police ? "policeb" : ctx.Pick(GameData.BanditBikes);
                 string riderModel = police ? "s_m_y_cop_01" : ctx.Pick(GameData.NormalAttackers);
 
-                Vector3 position = Spawner.NearPlayer(ctx.Rng, 12f, 20f);
+                Vector3 position = Spawner.NearPlayer(ctx.Rng, 12f, 20f, onRotors: false); // las motos no caen sobre el helicóptero
                 Vehicle bike = Spawner.SpawnVehicle(bikeModel, position, Spawner.HeadingToPlayer(position), placeOnGround: !Spawner.IsPlayerAirborne());
                 ctx.Tracker.Track(bike, null, EntityTracker.KindAttacker);
 
