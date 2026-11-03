@@ -24,8 +24,11 @@ namespace StreamTok.GtaV.Modes
     /// </summary>
     internal sealed class ChiliadMode
     {
-        /// <summary>Meta por defecto: cima del Monte Chiliad (se puede mover con "marcar meta aquí").</summary>
-        public static readonly Vector3 DefaultGoal = new Vector3(501.8f, 5604.4f, 797.9f);
+        /// <summary>
+        /// Meta por defecto: el punto de la cima donde se para el jugador (frente a la plataforma de madera,
+        /// no debajo de ella). Se puede mover con "marcar meta aquí".
+        /// </summary>
+        public static readonly Vector3 DefaultGoal = new Vector3(502.18f, 5597.86f, 796.14f);
 
         /// <summary>
         /// Parada del taxi por defecto: salida del túnel del camino de tierra del Monte Chiliad
