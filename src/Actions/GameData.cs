@@ -190,7 +190,7 @@ namespace StreamTok.GtaV.Actions
         {
             ["maze_bank"] = new Vector3(-75.2f, -818.9f, 326.2f),      // techo del Maze Bank
             ["vinewood_sign"] = new Vector3(711.4f, 1198.1f, 348.5f),  // letrero de Vinewood
-            ["chiliad"] = new Vector3(501.8f, 5604.4f, 797.9f),        // cima del Monte Chiliad
+            ["chiliad"] = new Vector3(502.18f, 5597.86f, 796.14f),     // cima del Monte Chiliad (donde se para el jugador, junto a la plataforma)
             ["paleto_bay"] = new Vector3(-379.5f, 6118.3f, 31.5f),
             ["sandy_shores"] = new Vector3(1747.0f, 3273.7f, 41.1f),   // aeródromo
             ["fort_zancudo"] = new Vector3(-2047.4f, 3132.1f, 32.8f),  // base militar: ¡disparan!
