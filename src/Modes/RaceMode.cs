@@ -73,6 +73,12 @@ namespace StreamTok.GtaV.Modes
         /// <summary>Separación entre columnas de la parrilla, en metros (un carril ≈ 3,4 m).</summary>
         public float GridLaneWidth = 3.4f;
 
+        /// <summary>Mitad del ancho de pista que usan los pilotos al correr (m). Se reparten en 4 carriles dentro de ese ancho.</summary>
+        public float RoadHalfWidth = 4.5f;
+
+        /// <summary>Los bots usan poderes al azar (misil, meteorito, escudo, jet, portal, turbo) para ver cómo funcionan.</summary>
+        public bool BotPowers = true;
+
         /// <summary>true = desfile lento hacia la línea antes del 3-2-1; false = al dar "empezar" cuenta 3-2-1 en la parrilla y salen.</summary>
         public bool Parade = false;
     }
@@ -124,6 +130,8 @@ namespace StreamTok.GtaV.Modes
             public int NextGripAt;      // próxima vez que se revisa si hay curva
             public bool Drifting;       // agarre reducido (está girando)
             public int DriftSince, NextDriftAt;
+            public float LaneOffset;    // carril elegido (m a la izquierda del centro de la pista)
+            public int LaneChangeAt;    // cuándo vuelve a elegir carril
             public int FlipSince;       // desde cuándo está volcado / patas arriba (ms), 0 = no
         }
 
@@ -766,6 +774,7 @@ namespace StreamTok.GtaV.Modes
 
                 case Phase.Racing:
                     UpdateRacing(now);
+                    UpdateBotPowers(now);
                     DrawHud(now);
                     if (now < _goUntil)
                     {
@@ -913,6 +922,7 @@ namespace StreamTok.GtaV.Modes
         {
             _phase = Phase.Racing;
             _goUntil = now + 1500;
+            _nextBotPowerAt = now + 6000;
             _raceStart = now;
             _firstFinishAt = 0;
             _finishedCount = 0;
@@ -927,6 +937,7 @@ namespace StreamTok.GtaV.Modes
                 }
                 r.Speed = 0f;
                 r.NextBotBoost = now + 3000 + _rng.Next(0, 6000);
+                r.LaneChangeAt = now + 2000 + _rng.Next(0, 4000);
             }
             _log($"Carrera: salida con {_racers.Count} pilotos.");
         }
@@ -1006,6 +1017,7 @@ namespace StreamTok.GtaV.Modes
                     DriveAi(r, now, target, leadDist);
                     if (_phase == Phase.Racing && !r.Finished)
                     {
+                        ApplyLane(r, dt, now);
                         ApplyDrift(r, now);
                     }
                 }
@@ -1165,7 +1177,7 @@ namespace StreamTok.GtaV.Modes
                 r.NextTaskAt = now + 1500;
                 r.WpDist = r.Dist + (CurveSpeed(r.Dist) < 0.85f ? 80f : 140f); // destino más cerca en curvas: corta menos
                 r.WpSince = now;
-                Vector3 t = _track.PositionAt(r.WpDist);
+                Vector3 t = LanePoint(r.WpDist, r.LaneOffset); // el destino va en su carril: ya no todos por el centro
                 Function.Call(Hash.TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE, d.Handle, v.Handle, t.X, t.Y, t.Z, Math.Max(cruise, 5f), 2883621, 8f);
             }
         }
@@ -1254,6 +1266,109 @@ namespace StreamTok.GtaV.Modes
                         Function.Call(Hash.SET_ENTITY_NO_COLLISION_ENTITY, vb.Handle, va.Handle, true);
                     }
                 }
+            }
+        }
+
+        // ------------------------------------------------------------ carriles y poderes de bots
+
+        /// <summary>Punto de la pista a esa distancia, corrido hacia un carril (0 = centro). En curvas cerradas se acerca un poco al centro, sin dejar su carril.</summary>
+        private Vector3 LanePoint(float dist, float offset)
+        {
+            Vector3 tan = _track.TangentAt(dist);
+            Vector3 left = new Vector3(-tan.Y, tan.X, 0f);
+            if (left.Length() > 0.001f) left.Normalize();
+            return _track.PositionAt(dist) + left * (offset * LaneScale(dist - 40f));
+        }
+
+        /// <summary>
+        /// Cada piloto usa su carril de todo el ancho de la pista y cambia de carril cada pocos segundos o cuando
+        /// tiene a alguien adelante en el suyo (así se adelantan en vez de ir en fila). Además de la orden a la IA,
+        /// un empujón lateral suave lo lleva a su carril. En curvas cerradas se acercan un poco al centro, sin dejar su carril.
+        /// </summary>
+        private void ApplyLane(Racer r, float dt, int now)
+        {
+            Vehicle v = r.Veh;
+            if (v == null || !v.Exists() || r.Drifting || !v.IsOnAllWheels || v.Speed < 10f) return;
+
+            if (now >= r.LaneChangeAt || LaneBlocked(r)) ChooseLane(r, now);
+
+            Vector3 tan = _track.TangentAt(r.Dist);
+            Vector3 left = new Vector3(-tan.Y, tan.X, 0f);
+            if (left.Length() > 0.001f) left.Normalize();
+            float scale = LaneScale(r.Dist);
+            float signed = Vector3.Dot(v.Position - _track.PositionAt(r.Dist), left);
+            float wanted = Math.Max(-3f, Math.Min(3f, (r.LaneOffset * scale - signed) * 0.9f)); // m/s de lado
+            float current = Vector3.Dot(v.Velocity, left);
+            v.Velocity = v.Velocity + left * ((wanted - current) * Math.Min(1f, dt * 3f));
+        }
+
+        /// <summary>Cuánto del carril se usa: 1 en recta, 0,75 en una curva muy cerrada (siguen en su carril, un poco más cerca del centro).</summary>
+        private float LaneScale(float dist) => 0.75f + 0.25f * Math.Max(0f, Math.Min(1f, (CurveSpeed(dist) - 0.6f) / 0.4f));
+
+        private bool LaneBlocked(Racer r)
+        {
+            foreach (Racer q in _racers)
+            {
+                if (ReferenceEquals(q, r) || q.Finished) continue;
+                float gap = q.Dist - r.Dist;
+                if (gap > 0f && gap < 25f && Math.Abs(q.LaneOffset - r.LaneOffset) < 1.4f) return true;
+            }
+            return false;
+        }
+
+        private void ChooseLane(Racer r, int now)
+        {
+            float w = _cfg.RoadHalfWidth;
+            float[] lanes = { -0.75f * w, -0.25f * w, 0.25f * w, 0.75f * w };
+            var free = new List<float>();
+            foreach (float l in lanes)
+            {
+                if (Math.Abs(l - r.LaneOffset) < 0.01f) continue;
+                bool blocked = false;
+                foreach (Racer q in _racers)
+                {
+                    if (ReferenceEquals(q, r) || q.Finished) continue;
+                    float gap = q.Dist - r.Dist;
+                    if (gap > -6f && gap < 40f && Math.Abs(q.LaneOffset - l) < 1.4f) { blocked = true; break; }
+                }
+                if (!blocked) free.Add(l);
+            }
+
+            if (free.Count > 0)
+            {
+                r.LaneOffset = free[_rng.Next(free.Count)];
+                r.LaneChangeAt = now + 4000 + _rng.Next(0, 6000);
+            }
+            else
+            {
+                r.LaneChangeAt = now + 1500; // sin hueco: reintenta pronto
+            }
+        }
+
+        private int _nextBotPowerAt;
+
+        /// <summary>Para probar: un bot al azar usa un poder cada 3-7 s (misil, meteorito, escudo, jet, portal, turbo).</summary>
+        private void UpdateBotPowers(int now)
+        {
+            if (!_cfg.BotPowers || now < _nextBotPowerAt) return;
+            _nextBotPowerAt = now + 3000 + _rng.Next(0, 4000);
+
+            List<Racer> bots = _racers.Where(x => x.IsBot && !x.Finished).ToList();
+            if (bots.Count == 0) return;
+            Racer b = bots[_rng.Next(bots.Count)];
+            int roll = _rng.Next(100);
+            try
+            {
+                if (roll < 30) Missile(b.Name, 4);
+                else if (roll < 45) Meteor(b.Name, 4);
+                else if (roll < 65) Shield(b.Name);
+                else if (roll < 80) JumpAhead(b.Name, 10, "JET");
+                else if (roll < 90) JumpAhead(b.Name, 20, "PORTAL");
+                else Boost(b.Name, 3);
+            }
+            catch (ActionException)
+            {
+                // sin objetivo (va primero, etc.): se ignora
             }
         }
 
@@ -1492,6 +1607,7 @@ namespace StreamTok.GtaV.Modes
                 Skill = isBot ? 0.93f + (float)_rng.NextDouble() * 0.14f : 0.98f + (float)_rng.NextDouble() * 0.04f,
                 Dist = startDist,
                 Lane = lane,
+                LaneOffset = Math.Max(-_cfg.RoadHalfWidth * 0.8f, Math.Min(_cfg.RoadHalfWidth * 0.8f, lane)),
                 WeavePhase = (float)(_rng.NextDouble() * Math.PI * 2),
                 Yaw = heading,
             });
