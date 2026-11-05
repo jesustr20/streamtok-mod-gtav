@@ -65,7 +65,13 @@ namespace StreamTok.GtaV.Modes
         public bool RealDriving = true;
 
         /// <summary>Derrape en las curvas: 0 = agarre normal, 1-3 = el auto pierde agarre y se desliza más.</summary>
-        public int DriftLevel = 2;
+        public int DriftLevel = 1;
+
+        /// <summary>Autos de lado a lado en la parrilla (4 = ocupa todo el ancho de una pista de 2 carriles por lado).</summary>
+        public int GridColumns = 4;
+
+        /// <summary>Separación entre columnas de la parrilla, en metros (un carril ≈ 3,4 m).</summary>
+        public float GridLaneWidth = 3.4f;
 
         /// <summary>true = desfile lento hacia la línea antes del 3-2-1; false = al dar "empezar" cuenta 3-2-1 en la parrilla y salen.</summary>
         public bool Parade = false;
@@ -116,7 +122,9 @@ namespace StreamTok.GtaV.Modes
             public int BoostFx = -1;    // efecto de partículas del turbo (-1 = sin efecto)
             public bool BoostOn;        // empuje de motor del turbo aplicado
             public int NextGripAt;      // próxima vez que se revisa si hay curva
-            public bool Drifting;       // agarre reducido (está en una curva)
+            public bool Drifting;       // agarre reducido (está girando)
+            public int DriftSince, NextDriftAt;
+            public int FlipSince;       // desde cuándo está volcado / patas arriba (ms), 0 = no
         }
 
         private readonly EntityTracker _tracker;
@@ -651,7 +659,7 @@ namespace StreamTok.GtaV.Modes
             Vector3 tan = _track.TangentAt(dist);
             Vector3 left = new Vector3(-tan.Y, tan.X, 0f);
             if (left.Length() > 0.001f) left.Normalize();
-            v.Position = _track.PositionAt(dist) + left * r.Lane;
+            v.Position = _track.PositionAt(dist) + left * (r.Lane * 0.5f); // más cerca del centro: la pista puede ser angosta
             float heading = (float)(Math.Atan2(-tan.X, tan.Y) * 180.0 / Math.PI);
             v.Rotation = new Vector3(0f, 0f, heading);
             Function.Call(Hash.SET_VEHICLE_ON_GROUND_PROPERLY, v.Handle, 5f);
@@ -988,7 +996,7 @@ namespace StreamTok.GtaV.Modes
                 {
                     // Ritmo propio (con una oscilación lenta) y freno en las curvas cerradas.
                     float form = r.Skill * (1f + 0.035f * (float)Math.Sin(now / 5500.0 + r.WeavePhase));
-                    target = baseMs * (1f + _cfg.BoostPerStack * r.BoostEnds.Count) * form; // sin frenar en las curvas: mantiene el ritmo y derrapa
+                    target = baseMs * (1f + _cfg.BoostPerStack * r.BoostEnds.Count) * form * CurveSpeed(r.Dist); // frena antes de las curvas cerradas (hasta ~60 % del ritmo) y acelera al salir
                     if (now < r.SlowUntil) target *= r.SlowFactor; // golpeado por un misil o meteorito
                 }
 
@@ -998,7 +1006,6 @@ namespace StreamTok.GtaV.Modes
                     DriveAi(r, now, target, leadDist);
                     if (_phase == Phase.Racing && !r.Finished)
                     {
-                        HoldSpeed(r, target, dt);
                         ApplyDrift(r, now);
                     }
                 }
@@ -1120,8 +1127,20 @@ namespace StreamTok.GtaV.Modes
                 r.StuckSince = 0;
             }
 
-            if (racing && (lateral > 30f || (r.StuckSince != 0 && now - r.StuckSince > 3000)))
+            // Volcado o encima de algo (muro, poste): vuelve a la pista a los 1,5 s.
+            bool flipped = racing && !v.IsOnAllWheels && (Math.Abs(v.Rotation.Y) > 50f || r.Speed < 3f);
+            if (flipped)
             {
+                if (r.FlipSince == 0) r.FlipSince = now;
+            }
+            else
+            {
+                r.FlipSince = 0;
+            }
+
+            if (racing && (lateral > 14f || (r.StuckSince != 0 && now - r.StuckSince > 2000) || (r.FlipSince != 0 && now - r.FlipSince > 1500)))
+            {
+                r.FlipSince = 0;
                 Respawn(r);
                 r.StuckSince = 0;
                 r.NextTaskAt = 0;
@@ -1144,7 +1163,7 @@ namespace StreamTok.GtaV.Modes
             if (now >= r.NextTaskAt && (r.WpDist - r.Dist < 45f || now - r.WpSince > 10000))
             {
                 r.NextTaskAt = now + 1500;
-                r.WpDist = r.Dist + 140f;
+                r.WpDist = r.Dist + (CurveSpeed(r.Dist) < 0.85f ? 80f : 140f); // destino más cerca en curvas: corta menos
                 r.WpSince = now;
                 Vector3 t = _track.PositionAt(r.WpDist);
                 Function.Call(Hash.TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE, d.Handle, v.Handle, t.X, t.Y, t.Z, Math.Max(cruise, 5f), 2883621, 8f);
@@ -1241,39 +1260,42 @@ namespace StreamTok.GtaV.Modes
         private const string NitroAsset = "veh_xs_vehicle_mods";
 
         /// <summary>
-        /// La IA del juego frena sola antes de cada curva. Aquí se le devuelve la velocidad que perdió, en la
-        /// misma dirección en que ya se mueve (así el auto se desliza de lado en vez de frenar).
-        /// </summary>
-        private static void HoldSpeed(Racer r, float target, float dt)
-        {
-            Vehicle v = r.Veh;
-            if (v == null || !v.Exists() || target < 5f || !v.IsOnAllWheels) return;
-            Vector3 vel = v.Velocity;
-            float speed = vel.Length();
-            if (speed < 4f || speed >= target * 0.97f) return; // arrancando o atascado: lo maneja la IA
-            float next = Math.Min(target, speed + 30f * dt);
-            v.Velocity = vel * (next / speed);
-        }
-
-        /// <summary>
-        /// Derrape solo en las curvas: al entrar en una el auto pierde agarre (se desliza y echa humo); en la recta
-        /// recupera el agarre normal.
+        /// Derrape solo mientras el auto está GIRANDO de verdad (volante girado a velocidad alta), no al ver una curva.
+        /// Dura como mucho 1,8 s y luego recupera el agarre y descansa 1,5 s: nada de derrapes largos.
         /// </summary>
         private void ApplyDrift(Racer r, int now)
         {
             if (_cfg.DriftLevel <= 0 || now < r.NextGripAt) return;
-            r.NextGripAt = now + 250;
+            r.NextGripAt = now + 100;
             Vehicle v = r.Veh;
             if (v == null || !v.Exists()) return;
 
-            float f = Math.Min(_track.CurveFactor(r.Dist), _track.CurveFactor(r.Dist + 25f));
-            bool curve = r.Drifting ? f < 0.97f : f < 0.92f; // con margen para que no parpadee
-            if (curve == r.Drifting) return;
-            r.Drifting = curve;
+            float steer = Math.Abs(v.SteeringAngle);
+            bool turning = v.Speed > 14f && steer > (r.Drifting ? 9f : 16f); // con margen para que no parpadee
+            if (r.Drifting && now - r.DriftSince > 1800)
+            {
+                turning = false;
+                r.NextDriftAt = now + 1500;
+            }
+            if (!r.Drifting && now < r.NextDriftAt) turning = false;
+            if (turning == r.Drifting) return;
 
-            if (TryHash("SET_VEHICLE_REDUCE_GRIP", out Hash grip)) Function.Call(grip, v.Handle, curve);
-            if (TryHash("SET_VEHICLE_REDUCE_GRIP_LEVEL", out Hash level)) Function.Call(level, v.Handle, curve ? Math.Min(3, _cfg.DriftLevel) : 0);
-            if (TryHash("SET_DRIFT_TYRES", out Hash drift)) Function.Call(drift, v.Handle, curve);
+            r.Drifting = turning;
+            if (turning) r.DriftSince = now;
+
+            if (TryHash("SET_VEHICLE_REDUCE_GRIP", out Hash grip)) Function.Call(grip, v.Handle, turning);
+            if (TryHash("SET_VEHICLE_REDUCE_GRIP_LEVEL", out Hash level)) Function.Call(level, v.Handle, turning ? Math.Min(3, _cfg.DriftLevel) : 0);
+            if (TryHash("SET_DRIFT_TYRES", out Hash drift)) Function.Call(drift, v.Handle, turning);
+        }
+
+        /// <summary>
+        /// Multiplicador de velocidad según la curva que viene: 1 en recta, ~0.6 en una curva muy cerrada. Mira un poco
+        /// adelante para frenar ANTES de entrar, como en una carrera.
+        /// </summary>
+        private float CurveSpeed(float dist)
+        {
+            float cf = Math.Min(_track.CurveFactor(dist + 12f), _track.CurveFactor(dist + 35f)); // 1 = recta, 0.55 = muy cerrada
+            return 0.6f + 0.4f * Math.Max(0f, Math.Min(1f, (cf - 0.55f) / 0.45f));
         }
 
         private static bool TryHash(string name, out Hash hash) =>
@@ -1293,7 +1315,7 @@ namespace StreamTok.GtaV.Modes
             {
                 if (TryHash("SET_VEHICLE_CHEAT_POWER_INCREASE", out Hash power))
                 {
-                    Function.Call(power, v.Handle, 1f + 1.5f * stacks);
+                    Function.Call(power, v.Handle, Math.Min(2.5f, 1f + 0.35f * stacks)); // más potencia, sin que patinen las ruedas
                 }
                 if (TryHash("MODIFY_VEHICLE_TOP_SPEED", out Hash top))
                 {
@@ -1415,9 +1437,10 @@ namespace StreamTok.GtaV.Modes
             }
 
             int idx = _racers.Count;
-            int row = idx / 2;
-            float lane = idx % 2 == 0 ? -1.5f : 1.5f;
-            float startDist = -((_cfg.RealDriving && _cfg.Parade ? Math.Min(FormationMeters, _track.Length * 0.35f) : 10f) + 6.5f * row);
+            int cols = Math.Max(1, _cfg.GridColumns);
+            int row = idx / cols;
+            float lane = (idx % cols - (cols - 1) / 2f) * _cfg.GridLaneWidth; // centrada en la pista: 4 columnas = -5,1 / -1,7 / 1,7 / 5,1
+            float startDist = -((_cfg.RealDriving && _cfg.Parade ? Math.Min(FormationMeters, _track.Length * 0.35f) : 10f) + 7f * row);
 
             Vector3 tan = _track.TangentAt(startDist);
             Vector3 left = new Vector3(-tan.Y, tan.X, 0f);
