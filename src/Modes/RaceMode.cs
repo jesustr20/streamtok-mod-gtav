@@ -66,6 +66,9 @@ namespace StreamTok.GtaV.Modes
 
         /// <summary>Derrape en las curvas: 0 = agarre normal, 1-3 = el auto pierde agarre y se desliza más.</summary>
         public int DriftLevel = 2;
+
+        /// <summary>true = desfile lento hacia la línea antes del 3-2-1; false = al dar "empezar" cuenta 3-2-1 en la parrilla y salen.</summary>
+        public bool Parade = false;
     }
 
     /// <summary>
@@ -112,7 +115,8 @@ namespace StreamTok.GtaV.Modes
             public int ShieldUntil;     // escudo: bloquea el próximo golpe hasta este momento
             public int BoostFx = -1;    // efecto de partículas del turbo (-1 = sin efecto)
             public bool BoostOn;        // empuje de motor del turbo aplicado
-            public int NextGripAt;      // próxima vez que se reafirma el derrape
+            public int NextGripAt;      // próxima vez que se revisa si hay curva
+            public bool Drifting;       // agarre reducido (está en una curva)
         }
 
         private readonly EntityTracker _tracker;
@@ -834,7 +838,7 @@ namespace StreamTok.GtaV.Modes
             // Con conductores de la IA: desfile. Los autos ya están en fila sobre la pista, 200 m antes de la
             // línea; salen todos a paso lento y en orden, y el 3-2-1 se cuenta al acercarse el líder a la línea.
             // Sin conductores (rieles): cuenta clásica con los autos quietos.
-            _formation = _cfg.RealDriving;
+            _formation = _cfg.RealDriving && _cfg.Parade;
             _countdownEnd = tnow + (_formation ? 60000 : 4000);
 
             if (_formation)
@@ -1251,16 +1255,25 @@ namespace StreamTok.GtaV.Modes
             v.Velocity = vel * (next / speed);
         }
 
-        /// <summary>Menos agarre (y llantas de derrape) para que se vea el deslizamiento y el humo en las curvas.</summary>
+        /// <summary>
+        /// Derrape solo en las curvas: al entrar en una el auto pierde agarre (se desliza y echa humo); en la recta
+        /// recupera el agarre normal.
+        /// </summary>
         private void ApplyDrift(Racer r, int now)
         {
             if (_cfg.DriftLevel <= 0 || now < r.NextGripAt) return;
-            r.NextGripAt = now + 1000;
+            r.NextGripAt = now + 250;
             Vehicle v = r.Veh;
             if (v == null || !v.Exists()) return;
-            if (TryHash("SET_VEHICLE_REDUCE_GRIP", out Hash grip)) Function.Call(grip, v.Handle, true);
-            if (TryHash("SET_VEHICLE_REDUCE_GRIP_LEVEL", out Hash level)) Function.Call(level, v.Handle, Math.Min(3, _cfg.DriftLevel));
-            if (TryHash("SET_DRIFT_TYRES", out Hash drift)) Function.Call(drift, v.Handle, true);
+
+            float f = Math.Min(_track.CurveFactor(r.Dist), _track.CurveFactor(r.Dist + 25f));
+            bool curve = r.Drifting ? f < 0.97f : f < 0.92f; // con margen para que no parpadee
+            if (curve == r.Drifting) return;
+            r.Drifting = curve;
+
+            if (TryHash("SET_VEHICLE_REDUCE_GRIP", out Hash grip)) Function.Call(grip, v.Handle, curve);
+            if (TryHash("SET_VEHICLE_REDUCE_GRIP_LEVEL", out Hash level)) Function.Call(level, v.Handle, curve ? Math.Min(3, _cfg.DriftLevel) : 0);
+            if (TryHash("SET_DRIFT_TYRES", out Hash drift)) Function.Call(drift, v.Handle, curve);
         }
 
         private static bool TryHash(string name, out Hash hash) =>
@@ -1404,7 +1417,7 @@ namespace StreamTok.GtaV.Modes
             int idx = _racers.Count;
             int row = idx / 2;
             float lane = idx % 2 == 0 ? -1.5f : 1.5f;
-            float startDist = -((_cfg.RealDriving ? Math.Min(FormationMeters, _track.Length * 0.35f) : 10f) + 6.5f * row);
+            float startDist = -((_cfg.RealDriving && _cfg.Parade ? Math.Min(FormationMeters, _track.Length * 0.35f) : 10f) + 6.5f * row);
 
             Vector3 tan = _track.TangentAt(startDist);
             Vector3 left = new Vector3(-tan.Y, tan.X, 0f);
