@@ -33,7 +33,7 @@ namespace StreamTok.GtaV
     ///   Token=              (opcional)
     ///   MaxRepeat=1000000
     ///   [Race]              (modo Carrera, en desarrollo; se muestra con [Menu] ShowRace=true)
-    ///   BaseKmh=120  Laps=3  BoostPerStack=0.20  MaxStacks=6  BoostSeconds=7  DriftLevel=2 (derrape solo en curvas; 0 = sin derrape, hasta 3)  Parade=false (true = desfile antes del 3-2-1)
+    ///   BaseKmh=120  Laps=3  BoostPerStack=0.20  MaxStacks=6  BoostSeconds=7  DriftLevel=1 (derrape suave solo en curvas cerradas; 0 = sin derrape, hasta 3)  Parade=false (true = desfile antes del 3-2-1)  GridColumns=4  GridLaneWidth=3.4
     ///   GhostAlpha=255  CleanupSeconds=12  FinishGraceSeconds=30
     ///   AllowRecording=false   (true = herramientas del creador: grabar pistas y verlas)
     ///   [Debug]
@@ -88,7 +88,9 @@ namespace StreamTok.GtaV
                 BoostPerStack = Setting("Race", "BoostPerStack", 0.20f),
                 MaxStacks = Setting("Race", "MaxStacks", 6),
                 BoostSeconds = Setting("Race", "BoostSeconds", 7f),
-                DriftLevel = Setting("Race", "DriftLevel", 2),
+                DriftLevel = Setting("Race", "DriftLevel", 1),
+                GridColumns = Setting("Race", "GridColumns", 4),
+                GridLaneWidth = Setting("Race", "GridLaneWidth", 3.4f),
                 Parade = Setting("Race", "Parade", false),
                 GhostAlpha = Setting("Race", "GhostAlpha", 255),
                 CleanupSeconds = Setting("Race", "CleanupSeconds", 12),
