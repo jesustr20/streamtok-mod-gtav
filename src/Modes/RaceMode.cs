@@ -7,6 +7,7 @@ using GTA;
 using GTA.Math;
 using GTA.Native;
 using StreamTok.GtaV.Actions;
+using StreamTok.GtaV.Effects;
 using StreamTok.GtaV.Entities;
 using StreamTok.GtaV.Race;
 using Notification = GTA.UI.Notification;
@@ -20,15 +21,14 @@ namespace StreamTok.GtaV.Modes
         public float BaseKmh = 120f;
 
         public int Laps = 3;
-        public int LobbySeconds = 30;
 
         /// <summary>Cada "turbo" activo suma este porcentaje de velocidad (0.15 = +15 %).</summary>
-        public float BoostPerStack = 0.15f;
+        public float BoostPerStack = 0.20f;
 
-        public int MaxStacks = 8;
+        public int MaxStacks = 6;
 
         /// <summary>Cuánto dura cada turbo.</summary>
-        public float BoostSeconds = 6f;
+        public float BoostSeconds = 7f;
 
         /// <summary>255 = autos normales; menos = translúcidos (se nota que se atraviesan).</summary>
         public int GhostAlpha = 255;
@@ -63,6 +63,9 @@ namespace StreamTok.GtaV.Modes
 
         /// <summary>true = cada piloto es un auto real que maneja la IA del juego (más natural); false = autos "sobre rieles".</summary>
         public bool RealDriving = true;
+
+        /// <summary>Derrape en las curvas: 0 = agarre normal, 1-3 = el auto pierde agarre y se desliza más.</summary>
+        public int DriftLevel = 2;
     }
 
     /// <summary>
@@ -104,6 +107,12 @@ namespace StreamTok.GtaV.Modes
             public int StuckSince;      // desde cuándo está detenido (ms), 0 = no
             public float LastCruise;
             public float Skill = 1f;    // ritmo propio del piloto (para que haya adelantamientos)
+            public int SlowUntil;       // golpeado por misil/meteorito: va más lento hasta este momento
+            public float SlowFactor = 1f;
+            public int ShieldUntil;     // escudo: bloquea el próximo golpe hasta este momento
+            public int BoostFx = -1;    // efecto de partículas del turbo (-1 = sin efecto)
+            public bool BoostOn;        // empuje de motor del turbo aplicado
+            public int NextGripAt;      // próxima vez que se reafirma el derrape
         }
 
         private readonly EntityTracker _tracker;
@@ -130,7 +139,7 @@ namespace StreamTok.GtaV.Modes
         private string _trackName;
         private Phase _phase = Phase.Idle;
         private int _laps;
-        private int _lobbyEnd, _countdownEnd, _raceStart, _firstFinishAt, _finishedAt, _nextTagAt;
+        private int _countdownEnd, _raceStart, _firstFinishAt, _finishedAt, _nextTagAt;
         private int _finishedCount, _botCounter;
         private int _lastCountdownShown;
         private bool _showTrack;
@@ -310,7 +319,7 @@ namespace StreamTok.GtaV.Modes
 
         // ============================================================ carrera
 
-        public void Open(int lobbySeconds, int laps, string trackName)
+        public void Open(int laps, string trackName)
         {
             RequireTrack();
             if (_phase != Phase.Idle)
@@ -330,10 +339,9 @@ namespace StreamTok.GtaV.Modes
 
             _laps = Math.Max(1, laps);
             _phase = Phase.Lobby;
-            _lobbyEnd = GTA.Game.GameTime + Math.Max(5, lobbySeconds) * 1000;
             _botCounter = 0;
-            Notification.Show($"~p~Carrera abierta~s~: {_laps} vueltas. ¡Inscríbanse!");
-            _log($"Carrera: lobby abierto en '{trackName}', {_laps} vueltas, {lobbySeconds} s.");
+            Notification.Show($"~p~Carrera abierta~s~: {_laps} vueltas. ¡Inscríbanse! Empieza cuando el streamer lo diga.");
+            _log($"Carrera: lobby abierto en '{trackName}', {_laps} vueltas (empieza con race_start).");
 
             if (_cfg.AutoCamera) BeginBroadcast();
             if (_cfg.PlayerRaces) AddRacer(PlayerRacerName, false);
@@ -444,7 +452,7 @@ namespace StreamTok.GtaV.Modes
             }
         }
 
-        /// <summary>Salta lo que queda del lobby y empieza la cuenta regresiva.</summary>
+        /// <summary>Cierra las inscripciones y empieza la cuenta regresiva (la carrera nunca empieza sola).</summary>
         public void StartNow()
         {
             if (_phase != Phase.Lobby)
@@ -498,8 +506,29 @@ namespace StreamTok.GtaV.Modes
             AddRacer(name, false);
         }
 
-        /// <summary>Turbo: suma un "stack" de velocidad por unos segundos (hasta el tope).</summary>
+        /// <summary>Turbo: suma "stacks" de velocidad por unos segundos (hasta el tope), con empujón y efecto visible.</summary>
         public void Boost(string name, int stacks)
+        {
+            Racer r = RequireRacer(name);
+            if (r == null) return;
+            stacks = Math.Max(1, stacks);
+            AddBoost(r, stacks);
+            Kick(r, 2.5f * Math.Min(stacks, _cfg.MaxStacks));
+            Notification.Show($"~o~TURBO x{r.BoostEnds.Count}~s~ {Safe(r.Name)}");
+        }
+
+        /// <summary>Acelerar (la rosa): un empujón de velocidad. Para entrar a la carrera está race_join.</summary>
+        public void Accelerate(string name)
+        {
+            Racer r = RequireRacer(name);
+            if (r == null) return;
+            AddBoost(r, 1);
+            Kick(r, 3f);
+            Notification.Show($"~y~ACELERA~s~ {Safe(r.Name)} x{r.BoostEnds.Count}");
+        }
+
+        /// <summary>El piloto en carrera, o error si la carrera no está en marcha / no está inscrito. null si ya llegó.</summary>
+        private Racer RequireRacer(string name)
         {
             if (_phase != Phase.Racing)
             {
@@ -511,24 +540,122 @@ namespace StreamTok.GtaV.Modes
             {
                 throw new ActionException("Primero tienes que inscribirte");
             }
-            if (r.Finished)
-            {
-                return;
-            }
-            AddBoost(r, Math.Max(1, stacks));
+            return r.Finished ? null : r;
         }
 
-        /// <summary>La rosa: inscribe si aún no está, o acelera si ya está inscrito.</summary>
-        public void Rose(string name)
+        /// <summary>Empujón inmediato de velocidad (m/s) para que el turbo se note al instante.</summary>
+        private static void Kick(Racer r, float extra)
         {
-            if (!string.IsNullOrWhiteSpace(name) && Find(name) != null)
+            Vehicle v = r.Veh;
+            if (v == null || !v.Exists()) return;
+            Vector3 fwd = v.ForwardVector;
+            v.Velocity = v.Velocity + fwd * extra;
+        }
+
+        // ------------------------------------------------------------ ataques y poderes
+
+        /// <summary>Misil: golpea al piloto que va justo delante del viewer.</summary>
+        public void Missile(string name, int seconds)
+        {
+            Racer me = RequireRacer(name);
+            if (me == null) return;
+            List<Racer> order = Ranking();
+            int idx = order.IndexOf(me);
+            Racer victim = idx > 0 && !order[idx - 1].Finished ? order[idx - 1] : null;
+            if (victim == null)
             {
-                Boost(name, 1);
+                throw new ActionException("Vas primero: no hay nadie adelante a quien dispararle");
             }
-            else
+            Hit(victim, me, "un misil", 0.25f, Math.Max(1, seconds) * 1000);
+        }
+
+        /// <summary>Meteorito: cae sobre el líder de la carrera (ayuda a los de atrás).</summary>
+        public void Meteor(string name, int seconds)
+        {
+            Racer me = RequireRacer(name);
+            if (me == null) return;
+            Racer lead = Ranking().FirstOrDefault(x => !x.Finished);
+            if (lead == null || ReferenceEquals(lead, me))
             {
-                Join(name);
+                throw new ActionException("Vas primero: el meteorito es para el líder");
             }
+            Hit(lead, me, "un meteorito", 0.2f, Math.Max(1, seconds) * 1000);
+        }
+
+        /// <summary>Escudo: bloquea el próximo golpe (misil o meteorito) durante 20 s.</summary>
+        public void Shield(string name)
+        {
+            Racer me = RequireRacer(name);
+            if (me == null) return;
+            me.ShieldUntil = GTA.Game.GameTime + 20000;
+            Notification.Show($"~b~ESCUDO~s~ {Safe(me.Name)} (20 s)");
+        }
+
+        /// <summary>Jet / portal: salta adelante un porcentaje de la pista.</summary>
+        public void JumpAhead(string name, int percent, string label)
+        {
+            Racer me = RequireRacer(name);
+            if (me == null) return;
+            float total = _laps * _track.Length;
+            float target = Math.Min(me.Dist + _track.Length * Math.Max(1, percent) / 100f, total - 15f);
+            if (target <= me.Dist + 5f)
+            {
+                throw new ActionException("Ya estás casi en la meta");
+            }
+            TeleportTo(me, target);
+            Notification.Show($"~g~{label}~s~ {Safe(me.Name)} +{percent}%");
+        }
+
+        /// <summary>WIN: el piloto aparece pegado a la meta con turbo y gana casi al instante.</summary>
+        public void Win(string name)
+        {
+            Racer me = RequireRacer(name);
+            if (me == null) return;
+            float total = _laps * _track.Length;
+            TeleportTo(me, Math.Max(me.Dist, total - 40f));
+            AddBoost(me, _cfg.MaxStacks);
+            Notification.Show($"~y~WIN~s~ {Safe(me.Name)} va directo a la meta");
+        }
+
+        private void Hit(Racer victim, Racer by, string what, float factor, int ms)
+        {
+            int now = GTA.Game.GameTime;
+            Vehicle v = victim.Veh;
+            if (v == null || !v.Exists()) return;
+
+            if (now < victim.ShieldUntil)
+            {
+                victim.ShieldUntil = 0;
+                Notification.Show($"~b~ESCUDO~s~ {Safe(victim.Name)} bloqueó {what} de {Safe(by.Name)}");
+                return;
+            }
+
+            victim.SlowFactor = factor;
+            victim.SlowUntil = now + ms;
+            victim.BoostEnds.Clear();
+            v.Velocity = v.Velocity * factor;
+            Vector3 p = v.Position;
+            // Explosión visual y sonora; los autos de la carrera son invencibles y la explosión no hace daño.
+            Function.Call(Hash.ADD_EXPLOSION, p.X, p.Y, p.Z, 4, 0f, true, false, 0.4f, true);
+            Notification.Show($"~r~BOOM~s~ {Safe(by.Name)} le dio {what} a {Safe(victim.Name)}");
+        }
+
+        private void TeleportTo(Racer r, float dist)
+        {
+            Vehicle v = r.Veh;
+            float keep = Math.Max(12f, v.Speed);
+            Vector3 tan = _track.TangentAt(dist);
+            Vector3 left = new Vector3(-tan.Y, tan.X, 0f);
+            if (left.Length() > 0.001f) left.Normalize();
+            v.Position = _track.PositionAt(dist) + left * r.Lane;
+            float heading = (float)(Math.Atan2(-tan.X, tan.Y) * 180.0 / Math.PI);
+            v.Rotation = new Vector3(0f, 0f, heading);
+            Function.Call(Hash.SET_VEHICLE_ON_GROUND_PROPERLY, v.Handle, 5f);
+            v.Velocity = tan * keep;
+            r.Dist = dist;
+            r.Yaw = heading;
+            r.WpDist = 0f;
+            r.NextTaskAt = 0;
         }
 
         public void AddBots(int count)
@@ -613,18 +740,7 @@ namespace StreamTok.GtaV.Modes
                     break;
 
                 case Phase.Lobby:
-                    if (now >= _lobbyEnd)
-                    {
-                        if (_racers.Count == 0)
-                        {
-                            Notification.Show("~p~Carrera~s~: nadie se inscribió, se cancela.");
-                            Cleanup();
-                        }
-                        else
-                        {
-                            BeginCountdown();
-                        }
-                    }
+                    // Espera hasta que el streamer da race_start: no empieza ni cuenta solo.
                     HoldGrid();
                     DrawHud(now);
                     break;
@@ -652,7 +768,7 @@ namespace StreamTok.GtaV.Modes
                     DrawHud(now);
                     if (now - _finishedAt >= _cfg.CleanupSeconds * 1000)
                     {
-                        Cleanup();
+                        ResetToLobby(); // no se cierra el modo: vuelve a la parrilla y espera inscripciones
                     }
                     break;
             }
@@ -857,6 +973,8 @@ namespace StreamTok.GtaV.Modes
                     r.BoostEnds.RemoveAll(end => end <= now);
                 }
 
+                ApplyBoostPhysics(r, now);
+
                 float target;
                 if (r.Finished || _phase == Phase.Finished)
                 {
@@ -866,13 +984,19 @@ namespace StreamTok.GtaV.Modes
                 {
                     // Ritmo propio (con una oscilación lenta) y freno en las curvas cerradas.
                     float form = r.Skill * (1f + 0.035f * (float)Math.Sin(now / 5500.0 + r.WeavePhase));
-                    target = baseMs * (1f + _cfg.BoostPerStack * r.BoostEnds.Count) * form * _track.CurveFactor(r.Dist + 15f);
+                    target = baseMs * (1f + _cfg.BoostPerStack * r.BoostEnds.Count) * form; // sin frenar en las curvas: mantiene el ritmo y derrapa
+                    if (now < r.SlowUntil) target *= r.SlowFactor; // golpeado por un misil o meteorito
                 }
 
                 if (r.Driver != null && r.Driver.Exists())
                 {
                     // Auto real: la IA lo maneja; aquí solo se le dice a qué velocidad y hacia dónde.
                     DriveAi(r, now, target, leadDist);
+                    if (_phase == Phase.Racing && !r.Finished)
+                    {
+                        HoldSpeed(r, target, dt);
+                        ApplyDrift(r, now);
+                    }
                 }
                 else
                 {
@@ -912,7 +1036,9 @@ namespace StreamTok.GtaV.Modes
                     List<Racer> order = Ranking();
                     for (int p = 0; p < order.Count; p++)
                     {
-                        _tracker.Retag(order[p].Veh, $"{p + 1}° {order[p].Name}");
+                        Racer o = order[p];
+                        string mark = now < o.ShieldUntil ? " [ESCUDO]" : now < o.SlowUntil ? " [GOLPEADO]" : o.BoostEnds.Count > 0 ? $" [TURBO x{o.BoostEnds.Count}]" : "";
+                        _tracker.Retag(o.Veh, $"{p + 1}° {o.Name}{mark}");
                     }
                 }
             }
@@ -1108,6 +1234,96 @@ namespace StreamTok.GtaV.Modes
             }
         }
 
+        private const string NitroAsset = "veh_xs_vehicle_mods";
+
+        /// <summary>
+        /// La IA del juego frena sola antes de cada curva. Aquí se le devuelve la velocidad que perdió, en la
+        /// misma dirección en que ya se mueve (así el auto se desliza de lado en vez de frenar).
+        /// </summary>
+        private static void HoldSpeed(Racer r, float target, float dt)
+        {
+            Vehicle v = r.Veh;
+            if (v == null || !v.Exists() || target < 5f || !v.IsOnAllWheels) return;
+            Vector3 vel = v.Velocity;
+            float speed = vel.Length();
+            if (speed < 4f || speed >= target * 0.97f) return; // arrancando o atascado: lo maneja la IA
+            float next = Math.Min(target, speed + 30f * dt);
+            v.Velocity = vel * (next / speed);
+        }
+
+        /// <summary>Menos agarre (y llantas de derrape) para que se vea el deslizamiento y el humo en las curvas.</summary>
+        private void ApplyDrift(Racer r, int now)
+        {
+            if (_cfg.DriftLevel <= 0 || now < r.NextGripAt) return;
+            r.NextGripAt = now + 1000;
+            Vehicle v = r.Veh;
+            if (v == null || !v.Exists()) return;
+            if (TryHash("SET_VEHICLE_REDUCE_GRIP", out Hash grip)) Function.Call(grip, v.Handle, true);
+            if (TryHash("SET_VEHICLE_REDUCE_GRIP_LEVEL", out Hash level)) Function.Call(level, v.Handle, Math.Min(3, _cfg.DriftLevel));
+            if (TryHash("SET_DRIFT_TYRES", out Hash drift)) Function.Call(drift, v.Handle, true);
+        }
+
+        private static bool TryHash(string name, out Hash hash) =>
+            Enum.TryParse(name, out hash) && Enum.IsDefined(typeof(Hash), hash);
+
+        /// <summary>
+        /// Con turbo activo el motor del auto rinde más (la IA solo recibe una velocidad de crucero y un auto normal
+        /// no pasa de su tope), más llamas de nitro en el escape. Al acabar se devuelve todo a lo normal.
+        /// </summary>
+        private void ApplyBoostPhysics(Racer r, int now)
+        {
+            Vehicle v = r.Veh;
+            if (v == null || !v.Exists()) return;
+
+            int stacks = r.Finished || _phase != Phase.Racing ? 0 : r.BoostEnds.Count;
+            if (stacks > 0)
+            {
+                if (TryHash("SET_VEHICLE_CHEAT_POWER_INCREASE", out Hash power))
+                {
+                    Function.Call(power, v.Handle, 1f + 1.5f * stacks);
+                }
+                if (TryHash("MODIFY_VEHICLE_TOP_SPEED", out Hash top))
+                {
+                    Function.Call(top, v.Handle, stacks * _cfg.BoostPerStack * 100f);
+                }
+                r.BoostOn = true;
+
+                // Llamas de nitro en la cola del auto (si el efecto no existe no se ve nada, pero no falla).
+                if (r.BoostFx < 0)
+                {
+                    Ptfx.Request(NitroAsset);
+                    if (Ptfx.Ready(NitroAsset))
+                    {
+                        Function.Call(Hash.USE_PARTICLE_FX_ASSET, NitroAsset);
+                        r.BoostFx = Function.Call<int>(Hash.START_PARTICLE_FX_LOOPED_ON_ENTITY, "veh_nitrous", v.Handle,
+                            0f, -2.3f, 0.1f, 0f, 0f, 0f, 1.6f, false, false, false);
+                    }
+                }
+
+                // Luz naranja detrás del auto: siempre se ve, aunque falle la partícula.
+                Ptfx.Light(v.GetOffsetPosition(new Vector3(0f, -2.6f, 0.3f)), Color.FromArgb(255, 140, 20), 7f, 9f);
+            }
+            else if (r.BoostOn || r.BoostFx >= 0)
+            {
+                StopBoostEffects(r);
+            }
+        }
+
+        private static void StopBoostEffects(Racer r)
+        {
+            Vehicle v = r.Veh;
+            if (r.BoostOn && v != null && v.Exists() && TryHash("SET_VEHICLE_CHEAT_POWER_INCREASE", out Hash power))
+            {
+                Function.Call(power, v.Handle, 1f);
+            }
+            r.BoostOn = false;
+            if (r.BoostFx >= 0)
+            {
+                Function.Call(Hash.STOP_PARTICLE_FX_LOOPED, r.BoostFx, false);
+                r.BoostFx = -1;
+            }
+        }
+
         private void AddBoost(Racer r, int stacks)
         {
             int end = GTA.Game.GameTime + (int)(_cfg.BoostSeconds * 1000f);
@@ -1140,9 +1356,28 @@ namespace StreamTok.GtaV.Modes
             _log($"Carrera: terminada. Podio: {string.Join(", ", order.Take(3).Select(x => x.Name))}.");
         }
 
+        /// <summary>
+        /// Terminada la carrera: borra los autos y vuelve a abrir las inscripciones en la misma pista (con la cámara
+        /// y el streamer oculto como estaban). Solo race_stop cierra el modo y devuelve al personaje a su lugar.
+        /// </summary>
+        private void ResetToLobby()
+        {
+            foreach (Racer r in _racers) StopBoostEffects(r);
+            _tracker.RemoveKind(Kind);
+            _racers.Clear();
+            _botCounter = 0;
+            _finishedCount = 0;
+            _firstFinishAt = 0;
+            _phase = Phase.Lobby;
+            Notification.Show($"~p~Nueva carrera~s~: {_laps} vueltas en '{_trackName}'. ¡Inscríbanse! Empieza cuando el streamer lo diga.");
+            _log("Carrera: terminada; vuelve al lobby para la siguiente.");
+            if (_cfg.PlayerRaces) AddRacer(PlayerRacerName, false);
+        }
+
         private void Cleanup()
         {
             EndBroadcast();
+            foreach (Racer r in _racers) StopBoostEffects(r);
             _racePool = null;
             _scenery?.Dispose();
             _scenery = null;
@@ -1298,7 +1533,7 @@ namespace StreamTok.GtaV.Modes
             if (_phase == Phase.Lobby)
             {
                 lines.Add($"CARRERA · {_trackName} · {_laps} vueltas");
-                lines.Add($"Inscripciones: {Math.Max(0, (_lobbyEnd - now + 999) / 1000)} s · {_racers.Count} pilotos");
+                lines.Add($"Inscripciones abiertas · {_racers.Count} pilotos · esperando que el streamer empiece");
             }
             else if (_phase == Phase.Countdown)
             {

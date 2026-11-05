@@ -203,7 +203,7 @@ namespace StreamTok.GtaV.Debug
 
                 // Pruebas de viewers (lo normal es que lleguen por la app o el webhook).
                 var tests = new Item { Title = "Pruebas de viewers" };
-                foreach (string id in new[] { "race_join", "race_boost", "race_rose" })
+                foreach (string id in new[] { "race_join", "race_boost", "race_rose", "race_missile", "race_meteor", "race_shield", "race_jet", "race_portal", "race_win" })
                 {
                     if (byId.TryGetValue(id, out ActionDef a))
                     {
