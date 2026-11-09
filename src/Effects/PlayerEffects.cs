@@ -99,7 +99,7 @@ namespace StreamTok.GtaV.Effects
 
             // Una línea por efecto, apiladas hacia arriba: "Juan Pérez · Inmortal".
             // Si la barra de vida está visible, los rótulos suben para no taparla.
-            float lift = StreamTok.GtaV.Entities.PlayerHealth.ShowHud ? 40f : 0f;
+            float lift = StreamTok.GtaV.Entities.PlayerHealth.ShowHud ? 70f : 0f;
             int line = 0;
             foreach (Effect e in _active.Values)
             {
