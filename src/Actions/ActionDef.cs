@@ -39,11 +39,18 @@ namespace StreamTok.GtaV.Actions
         /// </summary>
         public int[] Presets { get; private set; }
 
+        /// <summary>Paso de las flechas del menú F7 para un "int" (Shift = 10 veces más). Sin valor, se calcula según el rango.</summary>
+        public int? Step { get; private set; }
+
         /// <summary>Sin límites: ningún parámetro numérico tiene rango (min/max se ignoran); este valor solo existe porque el catálogo publica uno.</summary>
         public const int NoLimit = 1000000;
 
         public static ParamDef Int(string name, int def, int min, int max, params int[] presets) =>
             new ParamDef { Name = name, Type = "int", Default = def, Min = -NoLimit, Max = NoLimit, Presets = presets.Length > 0 ? presets : null };
+
+        /// <summary>Número libre cuyo menú F7 sube y baja de <paramref name="step"/> en <paramref name="step"/>.</summary>
+        public static ParamDef IntStep(string name, int def, int step) =>
+            new ParamDef { Name = name, Type = "int", Default = def, Min = -NoLimit, Max = NoLimit, Step = step };
 
         public static ParamDef Enum(string name, string def, params string[] options) =>
             new ParamDef { Name = name, Type = "enum", Default = def, Options = options };

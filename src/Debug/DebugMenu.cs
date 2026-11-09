@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using GTA.Native;
 using StreamTok.GtaV.Actions;
 using StreamTok.GtaV.Modes;
 using Keys = System.Windows.Forms.Keys;
@@ -61,6 +62,11 @@ namespace StreamTok.GtaV.Debug
         private readonly Stack<Level> _path = new Stack<Level>();
 
         private bool _open;
+
+        // Cuadro de número abierto (vida máxima): texto con los dígitos, y "fresh" = el próximo dígito lo reemplaza todo.
+        private Item _editing;
+        private string _editText = "";
+        private bool _editFresh;
         private int _paramIndex = -1; // -1 = navegando una lista
 
         /// <summary>
@@ -78,6 +84,12 @@ namespace StreamTok.GtaV.Debug
             foreach (ActionDef a in actions)
             {
                 _values[a.Id] = a.Params.ToDictionary(p => p.Name, p => p.Default);
+            }
+
+            // La vida máxima arranca mostrando la que quedó guardada, no la de fábrica.
+            if (_values.TryGetValue("player_max_health", out Dictionary<string, object> healthValues))
+            {
+                healthValues["health"] = StreamTok.GtaV.Entities.PlayerHealth.Value;
             }
 
             Item root = BuildRoot(actions, chiliad, arena, parkour, race, showTests, showParkour, showRace);
@@ -140,6 +152,13 @@ namespace StreamTok.GtaV.Debug
                 AddSwitch(chiliad, byId, "chiliad_timer", () => mode.TimerOn, chiliadActive);
                 AddSwitch(chiliad, byId, "chiliad_respawn", () => mode.RespawnOn, chiliadActive);
                 AddSwitch(chiliad, byId, "chiliad_taxi", () => mode.TaxiOn, chiliadActive);
+
+                // Vida del jugador: vale siempre (con el modo apagado también). Enter abre el cuadro del número.
+                if (byId.TryGetValue("player_max_health", out ActionDef hpAction))
+                {
+                    chiliad.Children.Add(new Item { Action = hpAction, NumberEditor = true });
+                }
+                AddSwitch(chiliad, byId, "player_health_hud", () => StreamTok.GtaV.Entities.PlayerHealth.ShowHud, null);
 
                 foreach (string id in ChiliadOptions)
                 {
@@ -256,6 +275,12 @@ namespace StreamTok.GtaV.Debug
                 return;
             }
 
+            if (_editing != null)
+            {
+                EditKey(key, shift);
+                return;
+            }
+
             Level level = _path.Peek();
             List<Item> items = level.Menu.Children;
             if (items.Count == 0)
@@ -324,6 +349,14 @@ namespace StreamTok.GtaV.Debug
 
         private void Activate(Item item)
         {
+            if (item.NumberEditor)
+            {
+                _editing = item;
+                _editText = _values[item.Action.Id][item.Action.Params[0].Name].ToString();
+                _editFresh = true; // el primer dígito que se escriba reemplaza el número
+                return;
+            }
+
             ActionDef action = item.IsToggle && item.IsOn() ? item.OffAction : item.Action;
             var values = new Dictionary<string, object>(_values[action.Id]);
             if (item.Custom != null)
@@ -342,6 +375,121 @@ namespace StreamTok.GtaV.Debug
             }
         }
 
+        // ================================================================ cuadro de número
+
+        private const int EditStep = 10;
+        private const int EditStepShift = 100;
+
+        private int EditValue()
+        {
+            return int.TryParse(_editText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int v)
+                ? v
+                : 0;
+        }
+
+        private void SetEdit(int value)
+        {
+            value = Math.Max(StreamTok.GtaV.Entities.PlayerHealth.Min, Math.Min(StreamTok.GtaV.Entities.PlayerHealth.Max, value));
+            _editText = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Teclas del cuadro de número: Arriba/Abajo suben o bajan de 10 en 10 (Shift: 100), 0-9 escriben (solo números),
+        /// Retroceso borra un dígito, Enter guarda y aplica, Izquierda/Esc cancela.
+        /// </summary>
+        private void EditKey(Keys key, bool shift)
+        {
+            int step = shift ? EditStepShift : EditStep;
+            switch (key)
+            {
+                case Keys.Up:
+                    SetEdit(EditValue() + step);
+                    _editFresh = false;
+                    return;
+
+                case Keys.Down:
+                    SetEdit(EditValue() - step);
+                    _editFresh = false;
+                    return;
+
+                case Keys.Back:
+                    _editText = _editText.Length > 1 ? _editText.Substring(0, _editText.Length - 1) : "0";
+                    _editFresh = false;
+                    return;
+
+                case Keys.Enter:
+                {
+                    ActionDef action = _editing.Action;
+                    SetEdit(EditValue());
+                    _values[action.Id][action.Params[0].Name] = EditValue();
+                    var values = new Dictionary<string, object>(_values[action.Id]);
+                    _editing = null;
+                    _run(action, values);
+                    return;
+                }
+
+                case Keys.Left:
+                case Keys.Escape:
+                    _editing = null;
+                    return;
+            }
+
+            int digit = key >= Keys.D0 && key <= Keys.D9 ? key - Keys.D0
+                      : key >= Keys.NumPad0 && key <= Keys.NumPad9 ? key - Keys.NumPad0
+                      : -1;
+            if (digit < 0)
+            {
+                return; // cualquier otra tecla se ignora: solo números
+            }
+
+            if (_editFresh || _editText == "0")
+            {
+                _editText = digit.ToString();
+            }
+            else if (_editText.Length < 6)
+            {
+                _editText += digit.ToString();
+            }
+            _editFresh = false;
+
+            if (EditValue() > StreamTok.GtaV.Entities.PlayerHealth.Max)
+            {
+                SetEdit(StreamTok.GtaV.Entities.PlayerHealth.Max);
+            }
+        }
+
+        private void DrawEditor()
+        {
+            // Mientras el cuadro está abierto el juego no recibe teclas (ni teléfono, ni armas, ni pausa).
+            Function.Call(Hash.DISABLE_ALL_CONTROL_ACTIONS, 0);
+
+            int v = EditValue();
+            string current = _values[_editing.Action.Id][_editing.Action.Params[0].Name].ToString();
+            var lines = new List<KeyValuePair<string, Color>>
+            {
+                Line($"StreamTok  >  {_editing.Action.Name}", Selected),
+                Line($"Arriba/Abajo: sube o baja de {EditStep} en {EditStep}  ·  Shift: de {EditStepShift} en {EditStepShift}", Dim),
+                Line("Teclas 0-9: escribir el número (solo números)  ·  Retroceso: borrar", Dim),
+                Line("Enter: guardar y aplicar  ·  Izquierda / Esc: cancelar", Dim),
+                Line("", Normal),
+                Line($"                   ^  +{EditStep}", Dim),
+                Line($"            [   {(_editFresh ? v.ToString() : _editText + "_")}   ]", Selected),
+                Line($"                   v  -{EditStep}", Dim),
+                Line("", Normal),
+                Line($"   Actual: {StreamTok.GtaV.Entities.PlayerHealth.Value}  ·  {StreamTok.GtaV.Entities.PlayerHealth.Normal} = vida normal de GTA  ·  mín. {StreamTok.GtaV.Entities.PlayerHealth.Min}  ·  máx. {StreamTok.GtaV.Entities.PlayerHealth.Max}", Dim),
+            };
+
+            _background.Size = new SizeF(Width, lines.Count * LineHeight + 12f);
+            _background.Draw();
+            for (int i = 0; i < lines.Count; i++)
+            {
+                _text.Caption = lines[i].Key;
+                _text.Color = lines[i].Value;
+                _text.Position = new PointF(X + 10f, Y + 6f + i * LineHeight);
+                _text.Draw();
+            }
+        }
+
         // ================================================================ dibujo
 
         /// <summary>Llamar cada frame.</summary>
@@ -354,6 +502,12 @@ namespace StreamTok.GtaV.Debug
 
             // La flecha arriba abre el teléfono en GTA: bloquearlo mientras el menú está abierto.
             GTA.Game.DisableControlThisFrame(GTA.Control.Phone);
+
+            if (_editing != null)
+            {
+                DrawEditor();
+                return;
+            }
 
             Level level = _path.Peek();
             List<Item> items = level.Menu.Children;
@@ -430,6 +584,10 @@ namespace StreamTok.GtaV.Debug
                     ? $"{it.Action.Name}   (activa el modo)"
                     : $"{it.Action.Name}:   {(it.IsOn() ? "~g~ON~s~" : "~r~OFF~s~")}   (Enter = cambiar)";
             }
+            if (it.NumberEditor)
+            {
+                return $"{it.Action.Name}:   {StreamTok.GtaV.Entities.PlayerHealth.Value}   (Enter = cambiar)";
+            }
             if (it.IsMenu)
             {
                 if (it.IsOn != null)
@@ -475,7 +633,7 @@ namespace StreamTok.GtaV.Debug
                 case "int":
                     int range = def.Max.HasValue && def.Min.HasValue ? def.Max.Value - def.Min.Value : 0;
                     // Rangos grandes (ej. dinero hasta 10 millones) avanzan en pasos más grandes.
-                    int step = range > 10000 ? 1000 : range > 1000 ? 100 : 1;
+                    int step = def.Step ?? (range > 10000 ? 1000 : range > 1000 ? 100 : 1);
                     if (shift) step *= 10;
                     int next = (int)current + direction * step;
                     if (def.Min.HasValue) next = Math.Max(def.Min.Value, next);
@@ -524,11 +682,14 @@ namespace StreamTok.GtaV.Debug
             /// <summary>Ítem propio del menú (no es una acción del catálogo), ej. la prueba de estrés.</summary>
             public Action<Dictionary<string, object>> Custom;
 
+            /// <summary>Enter abre un cuadro para subir/bajar o escribir un número (ej. la vida máxima).</summary>
+            public bool NumberEditor;
+
             public bool IsMenu => Action == null;
             public bool IsToggle => Action != null && OffAction != null;
 
             /// <summary>Acción cuyos parámetros se editan. Un interruptor encendido no tiene ajustes.</summary>
-            public ActionDef EditableAction => IsMenu || IsSwitch || (IsToggle && IsOn()) ? null : Action;
+            public ActionDef EditableAction => IsMenu || IsSwitch || NumberEditor || (IsToggle && IsOn()) ? null : Action;
         }
 
         private sealed class Level

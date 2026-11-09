@@ -54,6 +54,8 @@ namespace StreamTok.GtaV.Actions
             ["vehicle_boost"]       = new[] { Vehicle, "nitro", "Un empujón de nitro" },
 
             ["player_health"]       = new[] { Player, "health", "Suma o quita vida al jugador" },
+            ["player_max_health"]   = new[] { Player, "health", "Vida máxima del jugador (100 = normal); queda guardada y vale en todos los modos" },
+            ["player_health_hud"]   = new[] { Player, "health", "Muestra u oculta la barra y el número de vida sobre la cabeza del jugador" },
             ["player_kill"]         = new[] { Player, "kill", "Mata al jugador" },
             ["player_invincible"]   = new[] { Player, "invincible", "Inmortalidad hasta que se desactive" },
             ["player_invisible"]    = new[] { Player, "invisible", "El jugador se vuelve invisible" },

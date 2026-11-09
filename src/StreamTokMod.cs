@@ -80,6 +80,7 @@ namespace StreamTok.GtaV
             var tracker = new EntityTracker(Setting("Limits", "MaxSpawnedPeds", 100), Setting("Limits", "MaxSpawnedVehicles", 20));
             var scheduler = new FrameScheduler(Log);
             var characterManager = new CharacterManager(tracker, rng);
+            StreamTok.GtaV.Entities.PlayerHealth.Init(BaseDirectory, Log);
             var parkour = new ParkourMode(tracker, Log, BaseDirectory);
             var race = new RaceMode(tracker, rng, Log, BaseDirectory, new RaceSettings
             {
@@ -232,6 +233,8 @@ namespace StreamTok.GtaV
             Safe("Tareas", _services.Scheduler.Update);
             Safe("Nombres", _services.Tracker.Update);
             Safe("Láser", StreamTok.GtaV.Entities.LaserGuard.Update);
+            Safe("Vida", StreamTok.GtaV.Entities.PlayerHealth.Update);
+            Safe("Vida (barra)", StreamTok.GtaV.Entities.PlayerHealth.Draw);
             Safe("Personajes", _services.Characters.Update);
             Safe("Efectos", _services.Effects.Update);
             Safe("Chiliad", _services.Chiliad.Update);
