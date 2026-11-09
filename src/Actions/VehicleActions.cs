@@ -107,7 +107,8 @@ namespace StreamTok.GtaV.Actions
         ///             propio nombre. No toca el vehículo en el que va el jugador.
         /// drive = true ("Generar vehículo"): es "el vehículo del jugador". Si ya va en uno, lo
         ///             REEMPLAZA entero (mismo lugar, rumbo y velocidad) y el nombre pasa a ser el
-        ///             del nuevo viewer. Si va a pie, lo crea y lo sube.
+        ///             del nuevo viewer. Esto vale para CUALQUIER vehículo que conduzca (del juego, de
+        ///             otro viewer, robado…), no solo los que generó el mod. Si va a pie, lo crea y lo sube.
         /// </summary>
         private static void SpawnVehicle(ActionContext ctx, bool drive)
         {
@@ -130,23 +131,40 @@ namespace StreamTok.GtaV.Actions
             // jugador se bajó y caminó lejos, el nuevo vehículo aparece junto al JUGADOR (no en el
             // lugar del viejo), igual que la primera vez.
             Vehicle toDelete = null;
+            Vehicle stale = null; // un vehículo generado antes que quedó abandonado en otro lado
             bool replaceInPlace = false;
             if (drive)
             {
-                if (_lastPlayerVehicle != null && _lastPlayerVehicle.Exists())
+                bool hasLast = _lastPlayerVehicle != null && _lastPlayerVehicle.Exists();
+                Vehicle current = player.IsInVehicle() ? player.CurrentVehicle : null;
+
+                if (current != null && current.GetPedOnSeat(VehicleSeat.Driver) == player)
                 {
+                    // El vehículo que el jugador conduce AHORA es el que se cambia, sea cual sea: uno del
+                    // juego, de otro viewer o robado. Antes solo se reemplazaba el último generado por el mod,
+                    // y si el jugador iba en otro auto este quedaba intacto y aparecía uno aparte.
+                    toDelete = current;
+                    replaceInPlace = true;
+                    if (hasLast && _lastPlayerVehicle != current)
+                    {
+                        stale = _lastPlayerVehicle;
+                    }
+                }
+                else if (hasLast)
+                {
+                    // A pie, o de pasajero en un auto ajeno (ese no se toca): se borra el último generado.
                     toDelete = _lastPlayerVehicle;
                 }
-                else if (player.IsInVehicle())
-                {
-                    toDelete = player.CurrentVehicle;
-                }
-                replaceInPlace = toDelete != null && player.IsInVehicle() && player.CurrentVehicle == toDelete;
             }
 
             if (toDelete != null)
             {
                 ctx.Tracker.Untrack(toDelete);
+            }
+            if (stale != null)
+            {
+                ctx.Tracker.Untrack(stale);
+                EntityTracker.SafeDelete(stale);
             }
 
             Vehicle vehicle;
@@ -174,6 +192,10 @@ namespace StreamTok.GtaV.Actions
                 }
 
                 KeepMoving(ctx, vehicle, velocity);
+                if (vehicle.Model.IsHelicopter && player.HeightAboveGround > 3f)
+                {
+                    Function.Call(Hash.SET_HELI_BLADES_FULL_SPEED, vehicle); // si iba volando, no se cae por arrancar con las hélices paradas
+                }
             }
             else if (drive && player.HeightAboveGround > 3f)
             {
