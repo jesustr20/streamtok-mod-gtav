@@ -119,7 +119,7 @@ namespace StreamTok.GtaV.Entities
                 : Function.Call<int>(Hash.GET_FOLLOW_PED_CAM_VIEW_MODE);
             if (view == 4) return;
 
-            Vector3 head = p.Bones[Bone.SkelHead].Position + new Vector3(0f, 0f, 0.2f);
+            Vector3 head = p.Bones[Bone.SkelHead].Position + new Vector3(0f, 0f, 0.5f);
             PointF screen = GTA.UI.Screen.WorldToScreen(head);
             if (screen.IsEmpty) return;
 
@@ -127,15 +127,15 @@ namespace StreamTok.GtaV.Entities
             {
                 _back = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.FromArgb(170, 0, 0, 0));
                 _fill = new GTA.UI.ContainerElement(PointF.Empty, SizeF.Empty, Color.Green);
-                _text = new GTA.UI.TextElement("", PointF.Empty, 0.38f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true);
+                _text = new GTA.UI.TextElement("", PointF.Empty, 0.55f, Color.White, GTA.UI.Font.ChaletLondon, GTA.UI.Alignment.Center, true, true);
             }
 
             int max = Math.Max(1, p.MaxHealth - InternalOffset);
             int now = Math.Max(0, Math.Min(max, p.Health - InternalOffset));
             float fraction = (float)now / max;
 
-            const float Width = 90f;
-            const float Height = 8f;
+            const float Width = 150f;
+            const float Height = 14f;
             float x = screen.X - Width / 2f;
             float y = screen.Y;
 
@@ -151,7 +151,7 @@ namespace StreamTok.GtaV.Entities
             _fill.Draw();
 
             _text.Caption = now == max ? $"{max}" : $"{now} / {max}";
-            _text.Position = new PointF(screen.X, y - 24f);
+            _text.Position = new PointF(screen.X, y - 36f);
             _text.Draw();
         }
 
