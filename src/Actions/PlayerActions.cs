@@ -28,6 +28,20 @@ namespace StreamTok.GtaV.Actions
                         : Math.Max(0, p.Health - amount);
                 });
 
+            // Vida máxima del streamer: vale siempre (con cualquier modo, encendido o no) y queda guardada.
+            yield return new ActionDef("player_max_health", "Vida máxima del jugador", false,
+                new[] { ParamDef.IntStep("health", StreamTok.GtaV.Entities.PlayerHealth.Normal, 10) },
+                ctx =>
+                {
+                    StreamTok.GtaV.Entities.PlayerHealth.Set(ctx.Int("health"));
+                    GTA.UI.Notification.Show($"~g~Vida del jugador~s~: {StreamTok.GtaV.Entities.PlayerHealth.Value}");
+                });
+
+            // Barra verde y número de vida sobre la cabeza del jugador (solo para el streamer).
+            yield return new ActionDef("player_health_hud", "Mostrar vida sobre el jugador", false,
+                new[] { ParamDef.Bool("enabled", false) },
+                ctx => StreamTok.GtaV.Entities.PlayerHealth.SetHud(ctx.Bool("enabled")));
+
             yield return new ActionDef("player_kill", "Matar jugador", false, null,
                 ctx => Player.Kill());
 
