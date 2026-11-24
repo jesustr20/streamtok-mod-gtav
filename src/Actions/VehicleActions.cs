@@ -90,6 +90,36 @@ namespace StreamTok.GtaV.Actions
         /// <summary>Las 5 categorías de GameData.Vehicles, para el sorteo parejo en SpawnVehicle.</summary>
         private static readonly string[] VehicleTypes = { "car", "bike", "boat", "plane", "helicopter" };
 
+        /// <summary>% de veces que, en la montaña, sale un avión o helicóptero (0 = nunca). ini: [Chiliad] MountainAirPercent.</summary>
+        public static int MountainAirPercent = 10;
+
+        /// <summary>Radio (m) alrededor de la cima del Chiliad en el que se considera "estoy en la montaña". ini: [Chiliad] MountainRadius.</summary>
+        public static float MountainRadius = 1800f;
+
+        /// <summary>
+        /// En la montaña (modo Chiliad encendido, o a menos de MountainRadius de la cima) los aviones y helicópteros
+        /// te saltan la subida, y los botes se quedan varados: salen sobre todo autos y motos. Fuera de ahí, parejo.
+        /// </summary>
+        private static string PickVehicleType(ActionContext ctx)
+        {
+            Ped player = GTA.Game.Player.Character;
+            Vector3 summit = GameData.Locations["chiliad"];
+            Vector3 p = player.Position;
+            float dx = p.X - summit.X;
+            float dy = p.Y - summit.Y;
+            bool onMountain = ctx.Chiliad.IsActive || (dx * dx + dy * dy) < MountainRadius * MountainRadius;
+            if (!onMountain)
+            {
+                return ctx.Pick(VehicleTypes);
+            }
+
+            if (ctx.Rng.Next(100) < Math.Max(0, Math.Min(100, MountainAirPercent)))
+            {
+                return ctx.Pick(new[] { "helicopter", "plane" });
+            }
+            return ctx.Pick(new[] { "car", "bike" });
+        }
+
         /// <summary>
         /// Último vehículo que "Generar vehículo" (drive:true) le creó al jugador. Se guarda acá en
         /// vez de depender de player.CurrentVehicle al momento del siguiente comando: si los
@@ -112,8 +142,8 @@ namespace StreamTok.GtaV.Actions
         /// </summary>
         private static void SpawnVehicle(ActionContext ctx, bool drive)
         {
-            // Siempre al azar entre las 5 categorías, parejo (sin configuración del cliente).
-            string type = ctx.Pick(VehicleTypes);
+            // Al azar entre las 5 categorías, parejo; en el Monte Chiliad (o cerca) se prefieren autos y motos.
+            string type = PickVehicleType(ctx);
 
             // 1) Cargar el modelo ANTES de tocar nada: puede tardar unos frames y, mientras,
             //    el jugador sigue manejando su auto normal.
