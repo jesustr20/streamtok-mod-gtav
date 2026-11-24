@@ -81,6 +81,8 @@ namespace StreamTok.GtaV
             var scheduler = new FrameScheduler(Log);
             var characterManager = new CharacterManager(tracker, rng);
             StreamTok.GtaV.Entities.PlayerHealth.Init(BaseDirectory, Log);
+            VehicleActions.MountainAirPercent = Setting("Chiliad", "MountainAirPercent", 10);
+            VehicleActions.MountainRadius = Setting("Chiliad", "MountainRadius", 1800f);
             var parkour = new ParkourMode(tracker, Log, BaseDirectory);
             var race = new RaceMode(tracker, rng, Log, BaseDirectory, new RaceSettings
             {
